@@ -99,7 +99,7 @@ The eight-client profiles declare `hd1`--`hd8` and explicitly assign one FWD ent
 
 Before a multi-client Vdbench run, configure passwordless SSH or an equivalent authentication path from the master to every client. All clients must use the same Vdbench installation path, expose the same `@DATA@` mount path, and grant the test user permission to create, read, write, and remove the generated test tree.
 
-The IOR scripts require a hostfile with 16 non-comment entries and `slots=4` on every entry before launching `-np 64`. Start from [`hosts64.example`](workloads/11-checkpoint-short/hosts64.example), replace the host names, and set `@HOSTS64@` to that file. The scripts save each checkpoint PID and wait for every background checkpoint, so a failed MPI process prevents the final bandwidth summary.
+The IOR scripts require a hostfile with 16 non-comment entries and `slots=4` on every entry before launching `-np 64`. Start from [`hosts64.example`](workloads/11-checkpoint-short/hosts64.example), replace the host names, and set `@HOSTS64@` to that file. In the long-checkpoint sequence, each stage publishes an exit-status file before the next stage can start; a failed or interrupted stage prevents later stages and the final bandwidth summary, while the parent still collects every background status.
 
 IOR variants are executable independently: `run.sh output` runs only output phases, `run.sh checkpoint` runs only checkpoint phases, and `run.sh all` runs the complete sequence. Each invocation validates the marked data root, rejects unsafe `FITUNE_RUN_ID` values, and creates output files and logs under one new `checkpoint-*/runs/<run-id>` directory. The same commands are recorded in `catalog.json` under `variant_entries`.
 

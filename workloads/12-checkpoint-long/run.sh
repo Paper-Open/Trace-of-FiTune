@@ -105,10 +105,46 @@ output_gen() {
 }
 
 checkpoint_gen() {
-    [[ -n ${2:-} ]] && tail --pid="$2" -f /dev/null
-    "@MPIRUN@" -f "$hosts" -np "$M" "$ior" -w -s "$((419392 / M))" \
-        -a posix -i 1 -m -k -e -t 1M -b 1M -o "$out_path/checkpoint$1" \
-        > "$log_path/perf_checkpoint$1.log"
+    local checkpoint_id=$1 previous_pid=${2:-} previous_status=${3:-} rc
+    if [[ -n "$previous_pid" ]]; then
+        # A process exit is not a success signal.  Wait for the predecessor's
+        # status file, while also detecting a killed process that never wrote it.
+        while [[ ! -f "$previous_status" ]]; do
+            if ! kill -0 "$previous_pid" 2>/dev/null; then
+                break
+            fi
+            sleep 0.1
+        done
+        if [[ ! -f "$previous_status" ]]; then
+            echo "checkpoint $checkpoint_id predecessor has no status" >&2
+            rc=1
+            write_checkpoint_status "$checkpoint_id" "$rc"
+            return "$rc"
+        fi
+        read -r rc < "$previous_status" || rc=1
+        if [[ "$rc" != 0 ]]; then
+            echo "checkpoint $checkpoint_id skipped after predecessor failure ($rc)" >&2
+            write_checkpoint_status "$checkpoint_id" 1
+            return 1
+        fi
+    fi
+    if "@MPIRUN@" -f "$hosts" -np "$M" "$ior" -w -s "$((419392 / M))" \
+        -a posix -i 1 -m -k -e -t 1M -b 1M -o "$out_path/checkpoint$checkpoint_id" \
+        > "$log_path/perf_checkpoint$checkpoint_id.log"; then
+        rc=0
+    else
+        rc=$?
+    fi
+    write_checkpoint_status "$checkpoint_id" "$rc"
+    return "$rc"
+}
+
+write_checkpoint_status() {
+    local checkpoint_id=$1 rc=$2
+    local status_path="$log_path/checkpoint${checkpoint_id}.status"
+    local temporary="${status_path}.tmp.$$"
+    printf '%s\n' "$rc" > "$temporary"
+    mv -f -- "$temporary" "$status_path"
 }
 
 cal_avg() {
@@ -139,21 +175,29 @@ run_checkpoints() {
 }
 
 run_all() {
+    local rc=0
+    local checkpoint1_status="$log_path/checkpoint1.status"
+    local checkpoint2_status="$log_path/checkpoint2.status"
+    local checkpoint3_status="$log_path/checkpoint3.status"
     output_gen 1
     echo "output 1 done"
     checkpoint_gen 1 &
     checkpoint1_pid=$!
     output_gen 2
     echo "output 2 done"
-    checkpoint_gen 2 "$checkpoint1_pid" &
+    checkpoint_gen 2 "$checkpoint1_pid" "$checkpoint1_status" &
     checkpoint2_pid=$!
     output_gen 3
     echo "output 3 done"
-    checkpoint_gen 3 "$checkpoint2_pid" &
+    checkpoint_gen 3 "$checkpoint2_pid" "$checkpoint2_status" &
     checkpoint3_pid=$!
-    wait "$checkpoint1_pid"
-    wait "$checkpoint2_pid"
-    wait "$checkpoint3_pid"
+    wait "$checkpoint1_pid" || rc=1
+    wait "$checkpoint2_pid" || rc=1
+    wait "$checkpoint3_pid" || rc=1
+    if (( rc != 0 )); then
+        echo "one or more checkpoint stages failed; see checkpoint*.status and logs" >&2
+        return "$rc"
+    fi
 }
 
 case "$mode" in

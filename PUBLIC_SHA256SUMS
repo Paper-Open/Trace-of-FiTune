@@ -2,13 +2,13 @@
 54f0cb821b1f069635fdcea7b516a452f87a5cfc5dde1924e915f8680f5988c8  ./.github/workflows/validate.yml
 42966d1bac9661ce3a7640410c810c29fbf0349e68cdc17f034d3c022aac00df  ./LICENSE
 5bdba89ae4d1c2330af9310026466debdf2e3749b9865e40bd8c6f3fa2004cc0  ./NOTICE.md
-624e8201aee03c2bd3e37527b479d973fe984bf5e527d53668efebf1d8aee43c  ./README.md
-c97559adee99ce0479e4abe2854923ef2d08498d872c1391c77ffd83deea3e18  ./README.zh-CN.md
+56c01fc3c8ba3faf1c66338c8e86cd24588eb31156d3d0d5095776c9f7d1a3fe  ./README.md
+4d811db2a2120fd545c65547ca9e1056052425fdb537b5dd0a58d7604b7e2d8f  ./README.zh-CN.md
 5ca7b7e5a73f8f5d540097f1736cde3a1072cf7e5af0d27c3203d8a1e7e491a6  ./catalog.json
 9d849fbbfa516c0fd201bcabd7c1bdcae50fff28a28e9ddba71a1a48b8caec6d  ./scripts/check_placeholders.py
-41eeab63e64369caf0cf03d1f078c22a02b6f260a3fc1af066aa058f7a6e45e8  ./scripts/create_data_file.py
+64e04e98b4f4bdde8eb7bc0f380d8abda26762a1b85ba73d29884b61c2c6e567  ./scripts/create_data_file.py
 b3c070cb7711312124b5d8837a6ca02cdea23d9a93e07f7d918584ccc3202e10  ./scripts/prepare_data.sh
-2429d614d6122fa517e86e69a1c4de1c5f95c66752bad34ef7b1a1e9d0968fe3  ./scripts/render_vdbench.py
+f4beb6908296d8c49cf575ec14ce3b5f3b049af0ce298d17feed86c30b9ca578  ./scripts/render_vdbench.py
 0981abcbeb620d69c4008058dc08bd822594a863d499e9cb5108b6c124840988  ./scripts/validate_release.py
 41d7b23b388e00639c14537dcae2b52ddaad78d94ed14de73ddaa0100d9e2b9a  ./tool_versions.json
 119b061db9ebc899e5990ac9bbfec876a1f11289d2cf9a263da249891f5324cb  ./trace/30day_trace.csv
@@ -28,7 +28,7 @@ e946d06b60116da493b8f45f0ebe7a962659ce6ee9fd967117d093ba982febeb  ./workloads/10
 258bccc08606f8affadb36555d3df2e7c8a3fd4dbb88ff50ef5c85b03b3bc9b1  ./workloads/10-fio-streams/write-1.fio
 534f90e7903fcd05a1ce6d5eecaca25a94612c42a800a958d8117b29819f4563  ./workloads/11-checkpoint-short/hosts64.example
 bc79695d09482b9e6c5c274d4c9d114ba7d0900c5fc1cbeb94b3693ab7480c7e  ./workloads/11-checkpoint-short/run.sh
-0bbbbfdcc3a94b4ec29426187c2de99ec6758cee998bf6968bcc169a996cdc7f  ./workloads/12-checkpoint-long/run.sh
+c382eb454dcb4961e8f1ec90092bef61e97e7bcb10898dbf5cd123beb1ebb87e  ./workloads/12-checkpoint-long/run.sh
 84e7cbd76b19fba27e4fcc4accebbe32cd9818df8e5b8964cddc9091e1108305  ./workloads/13-inference/workload.vdb
 3fbec3e475a46eb373a9daf24e82186b1e3f75e8c4d26374e874bc6cbed7850b  ./workloads/14-indexed-access/rd1.vdb
 f91e687224380d1f4e3b93c1e299da7164d9ae2344aa3ac75a6592b1f4c0a9e7  ./workloads/14-indexed-access/rd2.vdb

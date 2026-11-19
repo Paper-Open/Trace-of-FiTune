@@ -78,6 +78,7 @@ def write_file(path: Path, size: int, mode: str, seed: bytes, force: bool) -> No
     check_existing_target(path, force)
     fd, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.fitune-", dir=path.parent)
     temporary = Path(temporary_name)
+    published = False
     try:
         try:
             if mode == "sparse":
@@ -110,17 +111,24 @@ def write_file(path: Path, size: int, mode: str, seed: bytes, force: bool) -> No
         if force:
             check_existing_target(path, True)
             os.replace(temporary, path)
+            published = True
         else:
             try:
                 os.link(temporary, path)
             except FileExistsError:
                 fail(f"refusing to overwrite existing file (use --force): {path}")
             temporary.unlink()
+            published = True
         fsync_parent(path)
-    except Exception:
-        if temporary.exists():
-            temporary.unlink()
-        raise
+    finally:
+        # The finally block also runs for KeyboardInterrupt/SystemExit.  A
+        # linked-but-not-yet-unlinked temporary is safe to remove because the
+        # published target has its own directory entry.
+        if not published:
+            try:
+                temporary.unlink()
+            except FileNotFoundError:
+                pass
 
 
 def main() -> int:

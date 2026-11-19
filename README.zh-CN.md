@@ -99,7 +99,7 @@ scripts/prepare_data.sh --root /mnt/fitune-data --profile w14 \
 
 运行多客户端 Vdbench 前，请配置从 Master 到所有 Client 的免密 SSH 或等效认证。所有 Client 应使用一致的 Vdbench 安装路径，访问相同的 `@DATA@` 挂载路径，并确保测试用户具有创建、读取、写入和删除测试目录的权限。
 
-IOR 脚本在启动 `-np 64` 前要求主机文件包含 16 个非注释条目，并且每个条目为 `slots=4`。请从 [`hosts64.example`](workloads/11-checkpoint-short/hosts64.example) 开始，替换主机名，并将 `@HOSTS64@` 设置为该文件。脚本会保存每个检查点 PID，并等待所有后台检查点完成；MPI 失败时不会输出最终带宽汇总。
+IOR 脚本在启动 `-np 64` 前要求主机文件包含 16 个非注释条目，并且每个条目为 `slots=4`。请从 [`hosts64.example`](workloads/11-checkpoint-short/hosts64.example) 开始，替换主机名，并将 `@HOSTS64@` 设置为该文件。长检查点序列会在每个阶段完成后写入退出状态文件，后续阶段只有在前一阶段成功时才会启动；如果阶段失败或被中断，后续阶段和最终带宽汇总都会被阻止，同时父进程仍会收集所有后台阶段的状态。
 
 IOR 变体可以独立执行：`run.sh output` 只运行输出阶段，`run.sh checkpoint` 只运行检查点阶段，`run.sh all` 运行完整序列。每次执行都会校验带标记的数据根目录，拒绝不安全的 `FITUNE_RUN_ID`，并将输出文件和日志写入同一个新的 `checkpoint-*/runs/<run-id>` 目录，具体命令记录在 `catalog.json` 的 `variant_entries` 中。
 

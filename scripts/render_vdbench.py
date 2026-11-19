@@ -7,8 +7,10 @@ import argparse
 import os
 from pathlib import Path
 import re
+import stat
 import subprocess
 import sys
+import tempfile
 
 
 TOKEN = re.compile(r"@[A-Z][A-Z0-9_]*@")
@@ -45,25 +47,67 @@ def safe_write(path: Path, text: str, root: Path, force: bool) -> None:
     check_inside(root, path, "output")
     path.parent.mkdir(parents=True, exist_ok=True)
     check_inside(root, path, "output")
-    if path.is_symlink():
-        fail(f"refusing symlink output: {path}")
-    flags = os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW
-    flags |= os.O_TRUNC if force else os.O_EXCL
     try:
-        fd = os.open(path, flags, 0o640)
-    except FileExistsError:
-        fail(f"output already exists (use --force explicitly): {path}")
-    except OSError as exc:
-        fail(f"cannot create output {path}: {exc}")
+        existing = path.lstat()
+    except FileNotFoundError:
+        existing = None
+    if existing is not None:
+        if stat.S_ISLNK(existing.st_mode):
+            fail(f"refusing symlink output: {path}")
+        if not stat.S_ISREG(existing.st_mode):
+            fail(f"refusing non-regular output: {path}")
+        if not force:
+            fail(f"output already exists (use --force explicitly): {path}")
+        if existing.st_nlink != 1:
+            fail(f"refusing multiply-linked output: {path}")
+
+    temporary: Path | None = None
+    published = False
     try:
+        fd, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.fitune-", dir=path.parent)
+        temporary = Path(temporary_name)
         with os.fdopen(fd, "w") as handle:
             handle.write(text)
-    except Exception:
+            handle.flush()
+            os.fsync(handle.fileno())
+            os.fchmod(handle.fileno(), 0o640)
+
+        if force:
+            # Re-check immediately before replacement so an injected hard link
+            # cannot be truncated through this path.
+            try:
+                current = path.lstat()
+            except FileNotFoundError:
+                current = None
+            if current is not None:
+                if stat.S_ISLNK(current.st_mode) or not stat.S_ISREG(current.st_mode):
+                    fail(f"refusing unsafe output target: {path}")
+                if current.st_nlink != 1:
+                    fail(f"refusing multiply-linked output: {path}")
+            os.replace(temporary, path)
+            published = True
+        else:
+            try:
+                os.link(temporary, path)
+            except FileExistsError:
+                fail(f"output already exists (use --force explicitly): {path}")
+            temporary.unlink()
+            published = True
+
         try:
-            os.close(fd)
+            parent_fd = os.open(path.parent, os.O_RDONLY)
+            try:
+                os.fsync(parent_fd)
+            finally:
+                os.close(parent_fd)
         except OSError:
             pass
-        raise
+    finally:
+        if not published and temporary is not None:
+            try:
+                temporary.unlink()
+            except FileNotFoundError:
+                pass
 
 
 def mounted_paths() -> set[Path]:
@@ -85,11 +129,28 @@ def mounted_paths() -> set[Path]:
 
 
 def check_anchor_mounts(root: Path, candidate: Path, label: str) -> None:
+    root_real = Path(os.path.realpath(root))
     candidate_real = Path(os.path.realpath(candidate))
     for mount in mounted_paths():
-        if mount == root:
+        if mount == root_real:
             continue
-        if mount == candidate_real or str(mount).startswith(str(candidate_real) + os.sep):
+        # Ignore normal mounts outside the dataset root.  Within ROOT, reject
+        # both mounts below the anchor and mounts that contain the anchor.
+        try:
+            mount.relative_to(root_real)
+        except ValueError:
+            continue
+        try:
+            mount.relative_to(candidate_real)
+            mount_contains_or_equals_anchor = True
+        except ValueError:
+            mount_contains_or_equals_anchor = False
+        try:
+            candidate_real.relative_to(mount)
+            anchor_is_below_or_equals_mount = True
+        except ValueError:
+            anchor_is_below_or_equals_mount = False
+        if mount_contains_or_equals_anchor or anchor_is_below_or_equals_mount:
             raise SystemExit(f"{label} contains a nested mount point: {mount}")
 
 
