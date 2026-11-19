@@ -1,0 +1,14 @@
+[global]
+filename=@DATA@/fio/testfile1
+size=109949485056
+bs=8M
+numjobs=1
+iodepth=10
+thread=1
+direct=1
+ioengine=libaio
+runtime=600
+time_based=1
+
+[fiotest]
+rw=read
