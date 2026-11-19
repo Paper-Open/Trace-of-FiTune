@@ -5,6 +5,16 @@ hosts="@HOSTS64@" #MPI host-file path
 ior="@IOR@" #IOR executable path
 M=64 #16 clients x 4 ranks/client
 out_path="@DATA@/checkpoint-long/"
+validate_hostfile() {
+    [[ -f "$hosts" ]] || { echo "missing MPI hostfile: $hosts" >&2; return 1; }
+    awk '
+        /^[[:space:]]*#/ || NF == 0 { next }
+        $2 != "slots=4" { bad=1 }
+        { count++ }
+        END { if (count != 16 || bad) exit 1 }
+    ' "$hosts" || { echo "hostfile must contain 16 clients with slots=4" >&2; return 1; }
+}
+validate_hostfile
 mkdir -p "$out_path"
 output_gen() {
     "@MPIRUN@" -f "$hosts" -np "$M" "$ior" -w -s `expr 4096 / $M` -a posix -i 48 -m -k -e -t 1M -b 1M -o "$out_path/output$1" > perf_output$1.log
@@ -29,15 +39,19 @@ cal_avg() {
 output_gen 1
 echo "output 1 done"
 checkpoint_gen 1 &
-last_checkpoint_gen_pid=$!
+checkpoint1_pid=$!
 output_gen 2
 echo "output 2 done"
-checkpoint_gen 2 $last_checkpoint_gen_pid &
-last_checkpoint_gen_pid=$!
+checkpoint_gen 2 "$checkpoint1_pid" &
+checkpoint2_pid=$!
 output_gen 3
 echo "output 3 done"
-checkpoint_gen 3 $last_checkpoint_gen_pid &
-wait
+checkpoint_gen 3 "$checkpoint2_pid" &
+checkpoint3_pid=$!
+
+wait "$checkpoint1_pid"
+wait "$checkpoint2_pid"
+wait "$checkpoint3_pid"
 
 output_log_files=("perf_output1.log" "perf_output2.log" "perf_output3.log")
 checkpoint_log_files=("perf_checkpoint1.log" "perf_checkpoint2.log" "perf_checkpoint3.log")

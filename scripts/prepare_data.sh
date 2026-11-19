@@ -1,186 +1,293 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Prepare the file trees referenced by the public workload templates.
-# Default mode is sparse: reads return deterministic zeros without allocating
-# the full logical capacity. Use --mode allocate to reserve filesystem blocks,
-# or --mode zero to write zero bytes across every requested extent.
+# Prepare public workload data. Vdbench profiles are always formatted by
+# Vdbench itself; this script never invents a Vdbench file tree.
 
-ROOT="${DATA_ROOT:-$PWD/fitune-data}"
-MODE="sparse"
-PROFILE_LIST="all"
+SCRIPT_DIR=$(cd -P "$(dirname "$0")" && pwd)
+ROOT=${DATA_ROOT:-$PWD/fitune-data}
+MODE="vdbench-format"
+PROFILE_LIST=""
 MAX_FILES=0
 CLEAN=0
+FORCE=0
+DRY_RUN=0
+INIT_ROOT=0
+VDBENCH=""
+HOSTS=""
+USER_NAME=${USER:-}
+TEMPLATE=""
 CREATED=0
+ROOT_CREATED=0
+MARKER_NAME=".fitune-generated"
+MARKER_VALUE="fitune-public-workload-data-v1"
 
 usage() {
     cat <<'USAGE'
-Usage: scripts/prepare_data.sh [options]
+Usage: scripts/prepare_data.sh --profile LIST [options]
 
-Options:
-  --root PATH             Dataset root (default: ./fitune-data)
-  --profile LIST          Comma-separated w01..w14 or all (default: all)
-  --mode MODE             sparse, allocate, or zero (default: sparse)
-  --max-files N           Stop after N created files per profile (smoke setup)
-  --clean                 Remove selected profile roots before preparing
-  -h, --help              Show this help
+Required:
+  --profile LIST          Comma-separated workload IDs (w01..w14)
+
+General options:
+  --root PATH             Dedicated dataset root (default: ./fitune-data)
+  --mode MODE             vdbench-format, random-prefill, zero, sparse,
+                          allocate, or directory (default: vdbench-format)
+  --init-root             Initialize an existing empty directory with a marker
+  --clean                 Remove selected generated subtrees; marker required
+  --force                 Permit overwriting existing regular data files
+  --dry-run               Print the planned operation without changing data
+  --max-files N           Limit direct-file preparation for smoke tests only
+
+Vdbench format options (w01-w09 and w13):
+  --vdbench PATH          Executable or wrapper for Vdbench 5.04.06
+  --hosts LIST            Comma-separated hosts in HOST01..HOST16 order
+  --user USER             Remote execution user (default: $USER)
+  --template PATH         One source template, when --profile has one ID
 
 Examples:
-  scripts/prepare_data.sh --root /mnt/test-data --profile w01,w02 --mode allocate
-  scripts/prepare_data.sh --root /mnt/test-data --profile w13 --mode sparse
-  scripts/prepare_data.sh --root /mnt/test-data --profile w05 --max-files 1000
+  scripts/prepare_data.sh --root /mnt/fitune-data --init-root \
+    --profile w01 --mode vdbench-format --clean \
+    --vdbench /opt/vdbench50406/vdbench \
+    --hosts node01,node02,node03,node04,node05,node06,node07,node08 \
+    --user bench
+  scripts/prepare_data.sh --root /mnt/fitune-data --profile w10 \
+    --mode random-prefill --init-root
+  scripts/prepare_data.sh --root /mnt/fitune-data --profile w05 \
+    --mode vdbench-format --dry-run --vdbench /opt/vdbench/vdbench \
+    --hosts node01,node02,node03,node04,node05,node06,node07,node08
+
+The Vdbench mode renders a format-only copy of the selected template, changes
+the run definition to format=only, and invokes Vdbench. Vdbench therefore
+creates its native vdb*.dir/vdb_f*.file structure. The runtime template keeps
+format=no and must be run only after this preparation step.
 USAGE
 }
 
+die() { echo "prepare_data.sh: $*" >&2; exit 2; }
+
 while (($#)); do
     case "$1" in
-        --root) ROOT=$2; shift 2 ;;
-        --profile) PROFILE_LIST=$2; shift 2 ;;
-        --mode) MODE=$2; shift 2 ;;
-        --max-files) MAX_FILES=$2; shift 2 ;;
+        --root) [[ $# -ge 2 ]] || die "--root needs a value"; ROOT=$2; shift 2 ;;
+        --profile) [[ $# -ge 2 ]] || die "--profile needs a value"; PROFILE_LIST=$2; shift 2 ;;
+        --mode) [[ $# -ge 2 ]] || die "--mode needs a value"; MODE=$2; shift 2 ;;
+        --max-files) [[ $# -ge 2 ]] || die "--max-files needs a value"; MAX_FILES=$2; shift 2 ;;
+        --vdbench) [[ $# -ge 2 ]] || die "--vdbench needs a value"; VDBENCH=$2; shift 2 ;;
+        --hosts) [[ $# -ge 2 ]] || die "--hosts needs a value"; HOSTS=$2; shift 2 ;;
+        --user) [[ $# -ge 2 ]] || die "--user needs a value"; USER_NAME=$2; shift 2 ;;
+        --template) [[ $# -ge 2 ]] || die "--template needs a value"; TEMPLATE=$2; shift 2 ;;
+        --init-root) INIT_ROOT=1; shift ;;
         --clean) CLEAN=1; shift ;;
+        --force) FORCE=1; shift ;;
+        --dry-run) DRY_RUN=1; shift ;;
         -h|--help) usage; exit 0 ;;
-        *) echo "unknown option: $1" >&2; usage >&2; exit 2 ;;
+        *) die "unknown option: $1" ;;
     esac
 done
 
+[[ -n "$PROFILE_LIST" ]] || die "--profile is required; refusing an implicit all-profile run"
+[[ "$PROFILE_LIST" != all ]] || die "all profiles must be selected explicitly"
+[[ "$PROFILE_LIST" =~ ^w(0[1-9]|1[0-4])(,w(0[1-9]|1[0-4]))*$ ]] || \
+    die "--profile must be a comma-separated list of w01..w14"
+[[ "$MAX_FILES" =~ ^[0-9]+$ ]] || die "--max-files must be a non-negative integer"
 case "$MODE" in
-    sparse|allocate|zero) ;;
-    *) echo "--mode must be sparse, allocate, or zero" >&2; exit 2 ;;
+    vdbench-format|random-prefill|zero|sparse|allocate|directory) ;;
+    *) die "unsupported --mode: $MODE" ;;
 esac
-if ! [[ "$MAX_FILES" =~ ^[0-9]+$ ]]; then
-    echo "--max-files must be a non-negative integer" >&2; exit 2
-fi
-if ! [[ "$PROFILE_LIST" == all || "$PROFILE_LIST" =~ ^w(0[1-9]|1[0-4])(,w(0[1-9]|1[0-4]))*$ ]]; then
-    echo "--profile must be all or a comma-separated list of w01..w14" >&2; exit 2
-fi
 
-profile_enabled() {
-    [[ "$PROFILE_LIST" == all || ",${PROFILE_LIST}," == *",$1,"* ]]
-}
+IFS=',' read -ra PROFILES <<< "$PROFILE_LIST"
 
-reset_counter() { CREATED=0; }
-limit_reached() { (( MAX_FILES > 0 && CREATED >= MAX_FILES )); }
-
-make_file() {
-    local path=$1 bytes=$2
-    limit_reached && return 1
-    mkdir -p "$(dirname "$path")"
-    case "$MODE" in
-        sparse) truncate -s "$bytes" "$path" ;;
-        allocate)
-            command -v fallocate >/dev/null 2>&1 || {
-                echo "allocate mode requires fallocate" >&2; exit 2;
-            }
-            fallocate -l "$bytes" "$path"
-            ;;
-        zero)
-            local full=$((bytes / 1048576)) rem=$((bytes % 1048576))
-            : > "$path"
-            if (( full > 0 )); then
-                dd if=/dev/zero of="$path" bs=1M count="$full" conv=fsync status=none
-            fi
-            if (( rem > 0 )); then
-                dd if=/dev/zero of="$path" bs=1 count="$rem" seek=$((full * 1048576)) conv=notrunc,fsync status=none
-            fi
-            ;;
-    esac
-    CREATED=$((CREATED + 1))
-    return 0
-}
-
-remove_root() {
-    local path=$1
-    if (( CLEAN )); then rm -rf -- "$path"; fi
-    mkdir -p "$path"
-}
-
-prepare_flat_files() {
-    local root=$1 count=$2 bytes=$3 prefix=$4 i
-    remove_root "$root"
-    for ((i=0; i<count; i++)); do
-        limit_reached && break
-        make_file "$root/${prefix}-$(printf '%08d' "$i")" "$bytes"
-    done
-    echo "prepared $root ($CREATED files, mode=$MODE)"
-}
-
-prepare_single_file() {
-    local root=$1 name=$2 bytes=$3
-    remove_root "$root"
-    if ! limit_reached; then
-        make_file "$root/$name" "$bytes"
+canonicalize_root() {
+    local raw=$ROOT parent base
+    [[ -n "$raw" && "$raw" != "/" ]] || die "--root must be a dedicated non-root directory"
+    if [[ -L "$raw" ]]; then
+        die "--root must not be a symbolic link: $raw"
     fi
-    echo "prepared $root/$name ($CREATED file, mode=$MODE)"
+    if [[ -e "$raw" ]]; then
+        [[ -d "$raw" ]] || die "--root is not a directory: $raw"
+        ROOT=$(cd -P -- "$raw" && pwd)
+    else
+        parent=$(dirname -- "$raw")
+        base=$(basename -- "$raw")
+        [[ "$base" != "." && "$base" != ".." && -n "$base" ]] || die "invalid --root: $raw"
+        [[ -d "$parent" ]] || die "parent directory does not exist: $parent"
+        parent=$(cd -P -- "$parent" && pwd)
+        ROOT="$parent/$base"
+        if (( ! DRY_RUN )); then
+            mkdir -- "$ROOT"
+            ROOT_CREATED=1
+            ROOT=$(cd -P -- "$ROOT" && pwd)
+        fi
+    fi
+    [[ "$ROOT" != "/" ]] || die "refusing root directory"
 }
 
-prepare_nested_files() {
-    local anchor=$1 depth=$2 width=$3 files=$4 bytes_list=$5
-    remove_root "$anchor"
-    nested_recurse "$anchor" "$depth" "$width" "$files" "$bytes_list"
+canonicalize_root
+MARKER="$ROOT/$MARKER_NAME"
+
+if (( DRY_RUN )); then
+    echo "[dry-run] dataset root: $ROOT"
+    echo "[dry-run] profile(s): $PROFILE_LIST; mode: $MODE"
+else
+    if [[ -L "$MARKER" ]]; then
+        die "dataset marker must not be a symbolic link: $MARKER"
+    fi
+    if [[ -e "$MARKER" ]]; then
+        [[ -f "$MARKER" ]] || die "dataset marker is not a regular file: $MARKER"
+        grep -Fqx "$MARKER_VALUE" "$MARKER" || die "unexpected dataset marker: $MARKER"
+    else
+        if find "$ROOT" -mindepth 1 -maxdepth 1 -print -quit | grep -q .; then
+            (( INIT_ROOT )) || die "existing root is not marked; use --init-root only for an empty dedicated directory"
+            die "--init-root requires an empty directory: $ROOT"
+        fi
+        (( INIT_ROOT || ROOT_CREATED )) || die "use --init-root to initialize this dedicated directory"
+        printf '%s\n' "$MARKER_VALUE" > "$MARKER"
+    fi
+    if (( CLEAN != 0 )) && [[ ! -f "$MARKER" ]]; then
+        die "--clean requires a marked dataset root"
+    fi
+fi
+
+is_under_root() {
+    case "$1" in
+        "$ROOT"/*) return 0 ;;
+        *) die "refusing path outside dataset root: $1" ;;
+    esac
 }
 
-nested_recurse() {
-    local base=$1 depth=$2 width=$3 files=$4 bytes_list=$5 i f bytes
-    if (( depth == 0 )); then
-        IFS=',' read -ra sizes <<< "$bytes_list"
-        for ((f=0; f<files; f++)); do
-            limit_reached && return 0
-            bytes=${sizes[$((f % ${#sizes[@]}))]}
-            make_file "$base/file-$(printf '%06d' "$f")" "$bytes"
-        done
+assert_no_symlink_path() {
+    local path=$1 current=$ROOT part
+    is_under_root "$path"
+    local relative=${path#"$ROOT"/}
+    IFS='/' read -ra parts <<< "$relative"
+    for part in "${parts[@]}"; do
+        current="$current/$part"
+        [[ ! -L "$current" ]] || die "refusing symlink path component: $current"
+    done
+}
+
+safe_mkdir() {
+    local path=$1
+    assert_no_symlink_path "$path"
+    mkdir -p -- "$path"
+}
+
+remove_generated_root() {
+    local path=$1
+    assert_no_symlink_path "$path"
+    if (( CLEAN )); then
+        [[ ! -L "$path" ]] || die "refusing to remove symlink: $path"
+        if (( DRY_RUN )); then
+            echo "[dry-run] would remove $path"
+        else
+            rm -rf -- "$path"
+        fi
+    fi
+    if (( ! DRY_RUN )); then
+        safe_mkdir "$path"
+    fi
+}
+
+create_file() {
+    local path=$1 bytes=$2
+    assert_no_symlink_path "$path"
+    (( MAX_FILES == 0 || CREATED < MAX_FILES )) || return 1
+    if (( DRY_RUN )); then
+        echo "[dry-run] would create $path ($bytes bytes, mode=$MODE)"
+    else
+        if (( FORCE )); then
+            python3 "$SCRIPT_DIR/create_data_file.py" \
+                --root "$ROOT" --path "$path" --size "$bytes" --mode "$MODE" --force
+        else
+            python3 "$SCRIPT_DIR/create_data_file.py" \
+                --root "$ROOT" --path "$path" --size "$bytes" --mode "$MODE"
+        fi
+    fi
+    CREATED=$((CREATED + 1))
+}
+
+template_for_profile() {
+    case "$1" in
+        w01) echo "workloads/01-std-rand-write/workload.vdb" ;;
+        w02) echo "workloads/02-std-rand-read/workload.vdb" ;;
+        w03) echo "workloads/03-std-seq-write/workload.vdb" ;;
+        w04) echo "workloads/04-std-seq-read/workload.vdb" ;;
+        w05) echo "workloads/05-small-write/workload.vdb" ;;
+        w06) echo "workloads/06-small-read/workload.vdb" ;;
+        w07) echo "workloads/07-mixed400k/workload.vdb" ;;
+        w08) echo "workloads/08-operation-mix/workload.vdb" ;;
+        w09) echo "workloads/09-bandwidth-mix/workload.vdb" ;;
+        w13) echo "workloads/13-inference/workload.vdb" ;;
+        *) return 1 ;;
+    esac
+}
+
+format_vdbench_profile() {
+    local profile=$1 input output run_dir
+    input=${TEMPLATE:-$(template_for_profile "$profile")}
+    [[ -f "$input" ]] || die "template does not exist: $input"
+    [[ -n "$VDBENCH" ]] || die "--vdbench is required for --mode vdbench-format"
+    [[ -n "$HOSTS" ]] || die "--hosts is required for --mode vdbench-format"
+    [[ -n "$USER_NAME" ]] || die "--user is required for --mode vdbench-format"
+    if (( ! DRY_RUN )) && ! command -v "$VDBENCH" >/dev/null 2>&1 && [[ ! -x "$VDBENCH" ]]; then
+        die "Vdbench executable or wrapper is not executable: $VDBENCH"
+    fi
+    if (( DRY_RUN )); then
+        echo "[dry-run] would render $input with format=only and invoke $VDBENCH -f <rendered-$profile.vdb>"
         return 0
     fi
-    for ((i=0; i<width; i++)); do
-        nested_recurse "$base/level${depth}-$(printf '%02d' "$i")" $((depth - 1)) "$width" "$files" "$bytes_list" || return 0
-    done
+    run_dir="$ROOT/.fitune-vdbench"
+    safe_mkdir "$run_dir"
+    output="$run_dir/$profile.format.vdb"
+    python3 "$SCRIPT_DIR/render_vdbench.py" \
+        --input "$input" --output "$output" --data "$ROOT" \
+        --vdbench "$VDBENCH" --user "$USER_NAME" --hosts "$HOSTS"
+    (cd "$run_dir" && "$VDBENCH" -f "$output")
+    echo "formatted $profile with native Vdbench format=only structure"
 }
 
-prepare_profile() {
+prepare_direct_profile() {
     local profile=$1
-    reset_counter
+    CREATED=0
     case "$profile" in
-        w01|w02|w03|w04)
-            prepare_flat_files "$ROOT/standard-large" 1024 1073741824 file ;;
-        w05|w06)
-            prepare_flat_files "$ROOT/smallfile" 10000000 4096 file ;;
-        w07)
-            # The template specifies width=100 and files=100000 per anchor.
-            prepare_nested_files "$ROOT/mixed400k" 1 100 100000 409600 ;;
-        w08)
-            local i
-            for i in 0 1 2 3; do prepare_nested_files "$ROOT/mixed-ops/dir$i" 4 5 36 '65536,131072'; done
-            for i in 4 5 6 7; do prepare_nested_files "$ROOT/mixed-ops/dir$i" 4 5 4 '1048576,2097152,8388608,134217728,1073741824'; done
-            ;;
-        w09)
-            local i
-            for i in 0 1 2 3; do prepare_nested_files "$ROOT/mixed-bandwidth/dir$i" 4 5 36 '65536,131072'; done
-            for i in 4 5 6 7; do prepare_nested_files "$ROOT/mixed-bandwidth/dir$i" 4 5 4 '1048576,2097152,8388608,134217728,1073741824'; done
-            ;;
         w10)
-            prepare_single_file "$ROOT/fio" testfile1 109949485056 ;;
-        w11) remove_root "$ROOT/checkpoint-short"; echo "prepared $ROOT/checkpoint-short (directory only)" ;;
-        w12) remove_root "$ROOT/checkpoint-long"; echo "prepared $ROOT/checkpoint-long (directory only)" ;;
-        w13)
-            prepare_nested_files "$ROOT/ai" 4 6 10 '53739520,53739520,53739520,107347968,107347968,107347968,107347968,214695936,214695936,214695936' ;;
+            remove_generated_root "$ROOT/fio"
+            if (( MAX_FILES == 0 || CREATED < MAX_FILES )); then
+                create_file "$ROOT/fio/testfile1" 109949485056
+            fi
+            echo "prepared $ROOT/fio/testfile1 ($CREATED file, mode=$MODE)"
+            ;;
         w14)
-            remove_root "$ROOT/indexed"
-            if ! limit_reached; then
-                make_file "$ROOT/indexed/edge-records" 6871947673600
+            remove_generated_root "$ROOT/indexed"
+            if (( MAX_FILES == 0 || CREATED < MAX_FILES )); then
+                create_file "$ROOT/indexed/edge-records" 6871947673600
             fi
-            if ! limit_reached; then
-                make_file "$ROOT/indexed/vertex-records" 54760833024
+            if (( MAX_FILES == 0 || CREATED < MAX_FILES )); then
+                create_file "$ROOT/indexed/vertex-records" 54760833024
             fi
-            echo "prepared $ROOT/indexed (edge and vertex files)" ;;
+            echo "prepared $ROOT/indexed ($CREATED files, mode=$MODE)"
+            ;;
+        w11) remove_generated_root "$ROOT/checkpoint-short"; echo "prepared $ROOT/checkpoint-short (directory only)" ;;
+        w12) remove_generated_root "$ROOT/checkpoint-long"; echo "prepared $ROOT/checkpoint-long (directory only)" ;;
+        *) die "$profile requires --mode vdbench-format" ;;
     esac
 }
 
-mkdir -p "$ROOT"
-if [[ "$PROFILE_LIST" == all ]]; then
-    for profile in w01 w02 w03 w04 w05 w06 w07 w08 w09 w10 w11 w12 w13 w14; do
-        prepare_profile "$profile"
+if [[ "$MODE" == "vdbench-format" ]]; then
+    if (( ! DRY_RUN && ! CLEAN )); then
+        die "Vdbench format=only can delete an existing native tree; pass --clean explicitly"
+    fi
+    [[ -z "$TEMPLATE" || ${#PROFILES[@]} -eq 1 ]] || die "--template is valid only with one profile"
+    for profile in "${PROFILES[@]}"; do
+        template_for_profile "$profile" >/dev/null || die "$profile is not a Vdbench FSD profile; use a direct-file mode"
+        format_vdbench_profile "$profile"
     done
 else
-    IFS=',' read -ra profiles <<< "$PROFILE_LIST"
-    for profile in "${profiles[@]}"; do prepare_profile "$profile"; done
+    for profile in "${PROFILES[@]}"; do
+        case "$MODE:$profile" in
+            random-prefill:w10|random-prefill:w14|zero:w10|zero:w14|sparse:w10|sparse:w14|allocate:w10|allocate:w14|directory:w11|directory:w12)
+                prepare_direct_profile "$profile" ;;
+            *) die "$profile is incompatible with --mode $MODE" ;;
+        esac
+    done
 fi

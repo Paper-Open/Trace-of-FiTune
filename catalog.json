@@ -7,7 +7,7 @@
       "pattern": "4 KiB random write",
       "tool": "Vdbench 5.04.06",
       "clients": 8,
-      "client_mapping": "hd1-hd8; fwdN -> hdN",
+      "client_mapping": "hd1-hd8; one FWD entry explicitly assigned to each host",
       "entry": "workloads/01-std-rand-write/workload.vdb",
       "variants": [
         "rd1"
@@ -18,7 +18,7 @@
       "pattern": "4 KiB random read",
       "tool": "Vdbench 5.04.06",
       "clients": 8,
-      "client_mapping": "hd1-hd8; fwdN -> hdN",
+      "client_mapping": "hd1-hd8; one FWD entry explicitly assigned to each host",
       "entry": "workloads/02-std-rand-read/workload.vdb",
       "variants": [
         "rd1"
@@ -29,7 +29,7 @@
       "pattern": "4 MiB sequential write",
       "tool": "Vdbench 5.04.06",
       "clients": 8,
-      "client_mapping": "hd1-hd8; fwdN -> hdN",
+      "client_mapping": "hd1-hd8; one FWD entry explicitly assigned to each host",
       "entry": "workloads/03-std-seq-write/workload.vdb",
       "variants": [
         "rd1"
@@ -40,7 +40,7 @@
       "pattern": "4 MiB sequential read",
       "tool": "Vdbench 5.04.06",
       "clients": 8,
-      "client_mapping": "hd1-hd8; fwdN -> hdN",
+      "client_mapping": "hd1-hd8; one FWD entry explicitly assigned to each host",
       "entry": "workloads/04-std-seq-read/workload.vdb",
       "variants": [
         "rd1"
@@ -51,7 +51,7 @@
       "pattern": "4 KiB small-file write",
       "tool": "Vdbench 5.04.06",
       "clients": 8,
-      "client_mapping": "hd1-hd8; fwdN -> hdN",
+      "client_mapping": "hd1-hd8; one FWD entry explicitly assigned to each host",
       "entry": "workloads/05-small-write/workload.vdb",
       "variants": [
         "rd1"
@@ -62,7 +62,7 @@
       "pattern": "4 KiB small-file read",
       "tool": "Vdbench 5.04.06",
       "clients": 8,
-      "client_mapping": "hd1-hd8; fwdN -> hdN",
+      "client_mapping": "hd1-hd8; one FWD entry explicitly assigned to each host",
       "entry": "workloads/06-small-read/workload.vdb",
       "variants": [
         "rd1"
@@ -73,7 +73,7 @@
       "pattern": "mixed random I/O on 400 KiB files",
       "tool": "Vdbench 5.04.06",
       "clients": 16,
-      "client_mapping": "hd1-hd16; fwdN -> hdN",
+      "client_mapping": "hd1-hd16; one FWD entry explicitly assigned to each host",
       "entry": "workloads/07-mixed400k/workload.vdb",
       "variants": [
         "rd1"
@@ -126,31 +126,33 @@
       "pattern": "short output and checkpoint sequence",
       "tool": "IOR 4.0.0 + MPI",
       "clients": 16,
-      "client_mapping": "64 ranks = 16 clients x 4 ranks/client; @HOSTS64@ supplies the host slots",
+      "client_mapping": "64 ranks = 16 clients x 4 ranks/client; hostfile slots are checked before launch",
       "entry": "workloads/11-checkpoint-short/run.sh",
       "variants": [
         "output",
         "checkpoint"
-      ]
+      ],
+      "hostfile_example": "workloads/11-checkpoint-short/hosts64.example"
     },
     {
       "id": "w12",
       "pattern": "long output and checkpoint sequence",
       "tool": "IOR 4.0.0 + MPI",
       "clients": 16,
-      "client_mapping": "64 ranks = 16 clients x 4 ranks/client; @HOSTS64@ supplies the host slots",
+      "client_mapping": "64 ranks = 16 clients x 4 ranks/client; hostfile slots are checked before launch",
       "entry": "workloads/12-checkpoint-long/run.sh",
       "variants": [
         "output",
         "checkpoint"
-      ]
+      ],
+      "hostfile_example": "workloads/11-checkpoint-short/hosts64.example"
     },
     {
       "id": "w13",
       "pattern": "inference-style I/O",
       "tool": "Vdbench 5.04.06",
       "clients": 16,
-      "client_mapping": "hd1-hd16; FWDs share fsd0 and use the declared operation mix",
+      "client_mapping": "hd1-hd16; FWD host omitted, using Vdbench default distribution; FWDs share fsd0 and use the declared operation mix",
       "entry": "workloads/13-inference/workload.vdb",
       "variants": [
         "rd1"

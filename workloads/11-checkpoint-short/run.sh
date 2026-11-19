@@ -5,6 +5,16 @@ hosts="@HOSTS64@" #MPI host-file path
 ior="@IOR@" #IOR executable path
 M=64 #16 clients x 4 ranks/client
 out_path="@DATA@/checkpoint-short/"
+validate_hostfile() {
+    [[ -f "$hosts" ]] || { echo "missing MPI hostfile: $hosts" >&2; return 1; }
+    awk '
+        /^[[:space:]]*#/ || NF == 0 { next }
+        $2 != "slots=4" { bad=1 }
+        { count++ }
+        END { if (count != 16 || bad) exit 1 }
+    ' "$hosts" || { echo "hostfile must contain 16 clients with slots=4" >&2; return 1; }
+}
+validate_hostfile
 mkdir -p "$out_path"
 output_gen() {
     "@MPIRUN@" -f "$hosts" -np "$M" "$ior" -w -s `expr 4096 / $M` -a posix -i 48 -m -k -e -t 1M -b 1M -o "$out_path/output$1" > perf_output$1.log

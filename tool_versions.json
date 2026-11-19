@@ -7,9 +7,13 @@
     "mpi": {"implementation": "Hydra-compatible MPI runtime", "version_command": "mpirun --version", "pin_before_run": true}
   },
   "runtime_dependencies": {
-    "java": "8 or newer for Vdbench 5.04.06",
+    "python": "3 or newer for validation, template rendering, and safe direct-file creation",
     "bash": "4 or newer",
+    "gnu_coreutils": ["mkdir", "dd", "grep", "awk", "tail", "expr", "sha256sum"],
+    "util_linux": ["fallocate is optional for manual extent allocation; the helper uses Python os.posix_fallocate"],
+    "filesystem_tools": ["a filesystem supporting native Vdbench formatting", "POSIX fallocate support for --mode allocate", "truncate is not used by the native Vdbench path"],
+    "java": "8 or newer for Vdbench 5.04.06",
     "bc": "required by workloads/12-checkpoint-long/run.sh",
-    "coreutils": ["mkdir", "truncate or fallocate", "dd", "grep", "awk", "tail", "expr"]
+    "mpi": "Hydra-compatible MPI runtime with mpirun -f support"
   }
 }

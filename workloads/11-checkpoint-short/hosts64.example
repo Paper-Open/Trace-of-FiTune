@@ -1,0 +1,18 @@
+# Hydra-compatible MPI hostfile: 16 clients, four slots per client.
+# Replace host01..host16 with the nodes used for the run.
+host01 slots=4
+host02 slots=4
+host03 slots=4
+host04 slots=4
+host05 slots=4
+host06 slots=4
+host07 slots=4
+host08 slots=4
+host09 slots=4
+host10 slots=4
+host11 slots=4
+host12 slots=4
+host13 slots=4
+host14 slots=4
+host15 slots=4
+host16 slots=4

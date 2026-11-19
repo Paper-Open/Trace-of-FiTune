@@ -2,3 +2,5 @@
 *.log
 fitune-data/
 results/
+__pycache__/
+*.pyc
