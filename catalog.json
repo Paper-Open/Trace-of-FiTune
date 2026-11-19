@@ -11,7 +11,10 @@
       "entry": "workloads/01-std-rand-write/workload.vdb",
       "variants": [
         "rd1"
-      ]
+      ],
+      "variant_entries": {
+        "rd1": "workloads/01-std-rand-write/workload.vdb"
+      }
     },
     {
       "id": "w02",
@@ -22,7 +25,10 @@
       "entry": "workloads/02-std-rand-read/workload.vdb",
       "variants": [
         "rd1"
-      ]
+      ],
+      "variant_entries": {
+        "rd1": "workloads/02-std-rand-read/workload.vdb"
+      }
     },
     {
       "id": "w03",
@@ -33,7 +39,10 @@
       "entry": "workloads/03-std-seq-write/workload.vdb",
       "variants": [
         "rd1"
-      ]
+      ],
+      "variant_entries": {
+        "rd1": "workloads/03-std-seq-write/workload.vdb"
+      }
     },
     {
       "id": "w04",
@@ -44,7 +53,10 @@
       "entry": "workloads/04-std-seq-read/workload.vdb",
       "variants": [
         "rd1"
-      ]
+      ],
+      "variant_entries": {
+        "rd1": "workloads/04-std-seq-read/workload.vdb"
+      }
     },
     {
       "id": "w05",
@@ -55,7 +67,10 @@
       "entry": "workloads/05-small-write/workload.vdb",
       "variants": [
         "rd1"
-      ]
+      ],
+      "variant_entries": {
+        "rd1": "workloads/05-small-write/workload.vdb"
+      }
     },
     {
       "id": "w06",
@@ -66,7 +81,10 @@
       "entry": "workloads/06-small-read/workload.vdb",
       "variants": [
         "rd1"
-      ]
+      ],
+      "variant_entries": {
+        "rd1": "workloads/06-small-read/workload.vdb"
+      }
     },
     {
       "id": "w07",
@@ -77,7 +95,10 @@
       "entry": "workloads/07-mixed400k/workload.vdb",
       "variants": [
         "rd1"
-      ]
+      ],
+      "variant_entries": {
+        "rd1": "workloads/07-mixed400k/workload.vdb"
+      }
     },
     {
       "id": "w08",
@@ -88,7 +109,10 @@
       "entry": "workloads/08-operation-mix/workload.vdb",
       "variants": [
         "rd1"
-      ]
+      ],
+      "variant_entries": {
+        "rd1": "workloads/08-operation-mix/workload.vdb"
+      }
     },
     {
       "id": "w09",
@@ -99,7 +123,10 @@
       "entry": "workloads/09-bandwidth-mix/workload.vdb",
       "variants": [
         "rd1"
-      ]
+      ],
+      "variant_entries": {
+        "rd1": "workloads/09-bandwidth-mix/workload.vdb"
+      }
     },
     {
       "id": "w10",
@@ -119,7 +146,13 @@
         "workloads/10-fio-streams/write-1.fio",
         "workloads/10-fio-streams/single-read.fio",
         "workloads/10-fio-streams/single-write.fio"
-      ]
+      ],
+      "variant_entries": {
+        "read-1": "workloads/10-fio-streams/read-1.fio",
+        "write-1": "workloads/10-fio-streams/write-1.fio",
+        "single-read": "workloads/10-fio-streams/single-read.fio",
+        "single-write": "workloads/10-fio-streams/single-write.fio"
+      }
     },
     {
       "id": "w11",
@@ -130,9 +163,15 @@
       "entry": "workloads/11-checkpoint-short/run.sh",
       "variants": [
         "output",
-        "checkpoint"
+        "checkpoint",
+        "all"
       ],
-      "hostfile_example": "workloads/11-checkpoint-short/hosts64.example"
+      "hostfile_example": "workloads/11-checkpoint-short/hosts64.example",
+      "variant_entries": {
+        "output": "workloads/11-checkpoint-short/run.sh output",
+        "checkpoint": "workloads/11-checkpoint-short/run.sh checkpoint",
+        "all": "workloads/11-checkpoint-short/run.sh all"
+      }
     },
     {
       "id": "w12",
@@ -143,9 +182,15 @@
       "entry": "workloads/12-checkpoint-long/run.sh",
       "variants": [
         "output",
-        "checkpoint"
+        "checkpoint",
+        "all"
       ],
-      "hostfile_example": "workloads/11-checkpoint-short/hosts64.example"
+      "hostfile_example": "workloads/11-checkpoint-short/hosts64.example",
+      "variant_entries": {
+        "output": "workloads/12-checkpoint-long/run.sh output",
+        "checkpoint": "workloads/12-checkpoint-long/run.sh checkpoint",
+        "all": "workloads/12-checkpoint-long/run.sh all"
+      }
     },
     {
       "id": "w13",
@@ -156,7 +201,10 @@
       "entry": "workloads/13-inference/workload.vdb",
       "variants": [
         "rd1"
-      ]
+      ],
+      "variant_entries": {
+        "rd1": "workloads/13-inference/workload.vdb"
+      }
     },
     {
       "id": "w14",
@@ -176,7 +224,13 @@
         "workloads/14-indexed-access/rd2.vdb",
         "workloads/14-indexed-access/rd3.vdb",
         "workloads/14-indexed-access/rd4.vdb"
-      ]
+      ],
+      "variant_entries": {
+        "rd1": "workloads/14-indexed-access/rd1.vdb",
+        "rd2": "workloads/14-indexed-access/rd2.vdb",
+        "rd3": "workloads/14-indexed-access/rd3.vdb",
+        "rd4": "workloads/14-indexed-access/rd4.vdb"
+      }
     }
   ]
 }

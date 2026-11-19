@@ -1,0 +1,23 @@
+name: validate-public-workload-suite
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Validate Python and shell sources
+        run: |
+          python -m py_compile scripts/*.py
+          bash -n scripts/prepare_data.sh workloads/11-checkpoint-short/run.sh workloads/12-checkpoint-long/run.sh
+      - name: Validate catalog, trace, placeholders, and checksums
+        run: |
+          python scripts/validate_release.py
+          python scripts/check_placeholders.py
+          sha256sum -c PUBLIC_SHA256SUMS

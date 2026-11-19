@@ -46,7 +46,7 @@ def deterministic_bytes(seed: bytes, index: int, size: int) -> bytes:
     return hashlib.shake_256(seed + index.to_bytes(8, "big")).digest(size)
 
 
-def write_file(path: Path, size: int, mode: str, seed: str, force: bool) -> None:
+def write_file(path: Path, size: int, mode: str, seed: bytes, force: bool) -> None:
     flags = os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW
     if path.exists() and not force:
         fail(f"refusing to overwrite existing file (use --force): {path}")
@@ -70,7 +70,7 @@ def write_file(path: Path, size: int, mode: str, seed: str, force: bool) -> None
                 fail("allocate mode requires os.posix_fallocate")
             os.posix_fallocate(fd, 0, size)
         else:
-            digest_seed = seed.encode("utf-8")
+            digest_seed = seed
             written = 0
             block = b"\0" * CHUNK if mode == "zero" else None
             chunk_index = 0
@@ -111,7 +111,9 @@ def main() -> int:
     check_path(root, path)
     path.parent.mkdir(parents=True, exist_ok=True)
     check_path(root, path)
-    write_file(path, args.size, args.mode, args.seed, args.force)
+    relative_path = path.relative_to(root).as_posix().encode("utf-8")
+    file_seed = args.seed.encode("utf-8") + b":" + relative_path
+    write_file(path, args.size, args.mode, file_seed, args.force)
     return 0
 
 

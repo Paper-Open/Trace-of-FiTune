@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 from pathlib import Path
 import json
 import math
@@ -44,6 +45,13 @@ def validate_catalog() -> None:
                 add(f"{item['id']}: missing variant file: {path}")
         if not item.get("variants"):
             add(f"{item['id']}: variants must be non-empty")
+        variant_entries = item.get("variant_entries", {})
+        if set(variant_entries) != set(item.get("variants", [])):
+            add(f"{item['id']}: variant_entries must cover exactly variants")
+        for variant, command in variant_entries.items():
+            entry_path = command.split()[0]
+            if not (ROOT / entry_path).is_file():
+                add(f"{item['id']}/{variant}: variant entry is not a file: {entry_path}")
 
         if item["id"] in expected_vdbench and entry.is_file():
             text = entry.read_text()
@@ -81,7 +89,8 @@ def validate_catalog() -> None:
                 add(f"{item['id']}: missing hostfile example")
             elif item["id"] == "w11":
                 lines = [line.split() for line in (ROOT / hostfile).read_text().splitlines() if line.strip() and not line.lstrip().startswith("#")]
-                if len(lines) != 16 or any(len(line) != 2 or line[1] != "slots=4" for line in lines):
+                names = [line[0] for line in lines if line]
+                if len(lines) != 16 or len(set(names)) != 16 or any(len(line) != 2 or line[1] != "slots=4" for line in lines):
                     add("w11: hostfile example must contain 16 entries with slots=4")
 
 
@@ -132,6 +141,15 @@ def validate_trace_and_csv() -> None:
                 variant = phase.get("variant")
                 if variant is not None and variant not in item.get("variants", []):
                     add(f"{phase_name}: variant {variant} is not listed for {item['id']}")
+                elif variant is not None:
+                    mapped = item.get("variant_entries", {}).get(variant, "").split()[0]
+                    if mapped and not (ROOT / mapped).is_file():
+                        add(f"{phase_name}: variant entry is missing: {mapped}")
+                    elif mapped:
+                        mapped_relative = Path(mapped).relative_to("workloads").as_posix()
+                        mapped_aliases = {mapped_relative, Path(mapped_relative).parent.as_posix()}
+                        if phase["profile"] not in mapped_aliases:
+                            add(f"{phase_name}: profile does not match variant entry {mapped}")
 
             repeat_of = phase["repeat_of"]
             if repeat_of is not None:
@@ -182,8 +200,43 @@ def validate_trace_and_csv() -> None:
                 add(f"trace CSV row {index}: {field} mismatch")
 
 
+def validate_checksums() -> None:
+    checksum_path = ROOT / "PUBLIC_SHA256SUMS"
+    if not checksum_path.is_file():
+        add("PUBLIC_SHA256SUMS is missing")
+        return
+    expected: dict[str, str] = {}
+    for line_number, line in enumerate(checksum_path.read_text().splitlines(), start=1):
+        if not line.strip():
+            continue
+        try:
+            digest, relative = line.split("  ", 1)
+        except ValueError:
+            add(f"PUBLIC_SHA256SUMS line {line_number}: invalid format")
+            continue
+        expected[relative] = digest
+
+    actual: dict[str, str] = {}
+    for path in ROOT.rglob("*"):
+        if not path.is_file() or ".git" in path.parts or path.name in {"PUBLIC_SHA256SUMS", ".gitignore"} or "__pycache__" in path.parts:
+            continue
+        digest = hashlib.sha256()
+        with path.open("rb") as handle:
+            for block in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(block)
+        relative = "./" + path.relative_to(ROOT).as_posix()
+        actual[relative] = digest.hexdigest()
+
+    if set(expected) != set(actual):
+        add(f"PUBLIC_SHA256SUMS file set mismatch: missing={sorted(set(actual) - set(expected))}, extra={sorted(set(expected) - set(actual))}")
+    for relative, digest in actual.items():
+        if expected.get(relative) != digest:
+            add(f"PUBLIC_SHA256SUMS mismatch: {relative}")
+
+
 validate_catalog()
 validate_trace_and_csv()
+validate_checksums()
 if errors:
     print("\n".join(errors), file=sys.stderr)
     sys.exit(1)

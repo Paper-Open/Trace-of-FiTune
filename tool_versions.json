@@ -4,12 +4,22 @@
     "vdbench": {"version": "5.04.06", "version_command": "java -jar vdbench.jar -v"},
     "fio": {"version": "3.36", "version_command": "fio --version"},
     "ior": {"version": "4.0.0", "version_command": "ior --version"},
-    "mpi": {"implementation": "Hydra-compatible MPI runtime", "version_command": "mpirun --version", "pin_before_run": true}
+    "mpi": {"implementation": "Hydra-compatible MPI runtime", "version_command": "mpirun --version", "pin_before_run": true},
+    "vdbench_heap_guidance": {
+      "example_java_opts": "-Xms2g -Xmx8g",
+      "scope": "illustrative starting point for w05-w07; measure master and client memory separately",
+      "validated_here": false
+    },
+    "shared_fsd_format": {
+      "preparation": "format=(clean,only) followed by format=(restart,only)",
+      "runtime": "format=no",
+      "reason": "avoid concurrent cleanup races for shared=yes FSDs"
+    }
   },
   "runtime_dependencies": {
     "python": "3 or newer for validation, template rendering, and safe direct-file creation",
     "bash": "4 or newer",
-    "gnu_coreutils": ["mkdir", "dd", "grep", "awk", "tail", "expr", "sha256sum"],
+    "gnu_coreutils": ["mkdir", "grep", "awk", "tail", "sha256sum"],
     "util_linux": ["fallocate is optional for manual extent allocation; the helper uses Python os.posix_fallocate"],
     "filesystem_tools": ["a filesystem supporting native Vdbench formatting", "POSIX fallocate support for --mode allocate", "truncate is not used by the native Vdbench path"],
     "java": "8 or newer for Vdbench 5.04.06",

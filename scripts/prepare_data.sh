@@ -5,6 +5,7 @@ set -euo pipefail
 # Vdbench itself; this script never invents a Vdbench file tree.
 
 SCRIPT_DIR=$(cd -P "$(dirname "$0")" && pwd)
+REPO_ROOT=$(cd -P "$SCRIPT_DIR/.." && pwd)
 ROOT=${DATA_ROOT:-$PWD/fitune-data}
 MODE="vdbench-format"
 PROFILE_LIST=""
@@ -16,11 +17,11 @@ INIT_ROOT=0
 VDBENCH=""
 HOSTS=""
 USER_NAME=${USER:-}
-TEMPLATE=""
 CREATED=0
 ROOT_CREATED=0
 MARKER_NAME=".fitune-generated"
 MARKER_VALUE="fitune-public-workload-data-v1"
+SUBMARKER_NAME=".fitune-subtree"
 
 usage() {
     cat <<'USAGE'
@@ -43,7 +44,6 @@ Vdbench format options (w01-w09 and w13):
   --vdbench PATH          Executable or wrapper for Vdbench 5.04.06
   --hosts LIST            Comma-separated hosts in HOST01..HOST16 order
   --user USER             Remote execution user (default: $USER)
-  --template PATH         One source template, when --profile has one ID
 
 Examples:
   scripts/prepare_data.sh --root /mnt/fitune-data --init-root \
@@ -57,8 +57,8 @@ Examples:
     --mode vdbench-format --dry-run --vdbench /opt/vdbench/vdbench \
     --hosts node01,node02,node03,node04,node05,node06,node07,node08
 
-The Vdbench mode renders a format-only copy of the selected template, changes
-the run definition to format=only, and invokes Vdbench. Vdbench therefore
+The Vdbench mode renders a format-only copy of the selected template, creates
+clean,only and restart,only stages, and invokes Vdbench. Vdbench therefore
 creates its native vdb*.dir/vdb_f*.file structure. The runtime template keeps
 format=no and must be run only after this preparation step.
 USAGE
@@ -75,7 +75,6 @@ while (($#)); do
         --vdbench) [[ $# -ge 2 ]] || die "--vdbench needs a value"; VDBENCH=$2; shift 2 ;;
         --hosts) [[ $# -ge 2 ]] || die "--hosts needs a value"; HOSTS=$2; shift 2 ;;
         --user) [[ $# -ge 2 ]] || die "--user needs a value"; USER_NAME=$2; shift 2 ;;
-        --template) [[ $# -ge 2 ]] || die "--template needs a value"; TEMPLATE=$2; shift 2 ;;
         --init-root) INIT_ROOT=1; shift ;;
         --clean) CLEAN=1; shift ;;
         --force) FORCE=1; shift ;;
@@ -172,20 +171,76 @@ safe_mkdir() {
     mkdir -p -- "$path"
 }
 
-remove_generated_root() {
-    local path=$1
+is_mountpoint() {
+    python3 - "$1" <<'PY'
+import os
+import subprocess
+import sys
+
+target = os.path.realpath(sys.argv[1])
+mounts = []
+mountinfo = "/proc/self/mountinfo"
+if os.path.isfile(mountinfo):
+    with open(mountinfo, encoding="utf-8") as handle:
+        for line in handle:
+            fields = line.split()
+            if len(fields) >= 5:
+                mounts.append(fields[4].replace(r"\040", " ").replace(r"\011", "\t").replace(r"\134", "\\"))
+else:
+    output = subprocess.run(["mount"], check=False, capture_output=True, text=True).stdout
+    for line in output.splitlines():
+        if " on " in line:
+            mounts.append(line.split(" on ", 1)[1].split(" (", 1)[0])
+
+for mount in mounts:
+    mount = os.path.realpath(mount)
+    if mount == target or mount.startswith(target + os.sep):
+        sys.exit(0)
+sys.exit(1)
+PY
+}
+
+write_subtree_marker() {
+    local path=$1 label=$2
+    local marker="$path/$SUBMARKER_NAME"
+    printf 'fitune-public-subtree-v1:%s\n' "$label" > "$marker"
+}
+
+ensure_generated_subtree() {
+    local path=$1 label=$2
+    local marker="$path/$SUBMARKER_NAME"
     assert_no_symlink_path "$path"
-    if (( CLEAN )); then
-        [[ ! -L "$path" ]] || die "refusing to remove symlink: $path"
-        if (( DRY_RUN )); then
-            echo "[dry-run] would remove $path"
-        else
-            rm -rf -- "$path"
-        fi
-    fi
-    if (( ! DRY_RUN )); then
+    if [[ -e "$path" ]]; then
+        [[ -d "$path" && ! -L "$path" ]] || die "generated subtree is not a real directory: $path"
+        [[ ! -L "$marker" && -f "$marker" ]] || die "generated subtree is not marked: $path"
+        grep -Fqx "fitune-public-subtree-v1:$label" "$marker" || die "generated subtree marker does not match $label: $path"
+    else
         safe_mkdir "$path"
+        write_subtree_marker "$path" "$label"
     fi
+}
+
+remove_generated_root() {
+    local path=$1 label=$2 marker
+    assert_no_symlink_path "$path"
+    marker="$path/$SUBMARKER_NAME"
+    if (( DRY_RUN )); then
+        if [[ -e "$path" && ! -f "$marker" ]]; then
+            die "dry-run found an unmarked generated subtree: $path"
+        fi
+        (( CLEAN )) && echo "[dry-run] would remove $path"
+        return 0
+    fi
+    if [[ -e "$path" ]]; then
+        [[ -d "$path" && ! -L "$path" ]] || die "generated subtree is not a real directory: $path"
+        [[ ! -L "$marker" && -f "$marker" ]] || die "generated subtree is not marked: $path"
+        grep -Fqx "fitune-public-subtree-v1:$label" "$marker" || die "generated subtree marker does not match $label: $path"
+        is_mountpoint "$path" && die "refusing to remove mounted subtree or descendant: $path"
+    fi
+    if (( CLEAN )); then
+        rm -rf -- "$path"
+    fi
+    ensure_generated_subtree "$path" "$label"
 }
 
 create_file() {
@@ -208,23 +263,31 @@ create_file() {
 
 template_for_profile() {
     case "$1" in
-        w01) echo "workloads/01-std-rand-write/workload.vdb" ;;
-        w02) echo "workloads/02-std-rand-read/workload.vdb" ;;
-        w03) echo "workloads/03-std-seq-write/workload.vdb" ;;
-        w04) echo "workloads/04-std-seq-read/workload.vdb" ;;
-        w05) echo "workloads/05-small-write/workload.vdb" ;;
-        w06) echo "workloads/06-small-read/workload.vdb" ;;
-        w07) echo "workloads/07-mixed400k/workload.vdb" ;;
-        w08) echo "workloads/08-operation-mix/workload.vdb" ;;
-        w09) echo "workloads/09-bandwidth-mix/workload.vdb" ;;
-        w13) echo "workloads/13-inference/workload.vdb" ;;
+        w01) echo "$REPO_ROOT/workloads/01-std-rand-write/workload.vdb" ;;
+        w02) echo "$REPO_ROOT/workloads/02-std-rand-read/workload.vdb" ;;
+        w03) echo "$REPO_ROOT/workloads/03-std-seq-write/workload.vdb" ;;
+        w04) echo "$REPO_ROOT/workloads/04-std-seq-read/workload.vdb" ;;
+        w05) echo "$REPO_ROOT/workloads/05-small-write/workload.vdb" ;;
+        w06) echo "$REPO_ROOT/workloads/06-small-read/workload.vdb" ;;
+        w07) echo "$REPO_ROOT/workloads/07-mixed400k/workload.vdb" ;;
+        w08) echo "$REPO_ROOT/workloads/08-operation-mix/workload.vdb" ;;
+        w09) echo "$REPO_ROOT/workloads/09-bandwidth-mix/workload.vdb" ;;
+        w13) echo "$REPO_ROOT/workloads/13-inference/workload.vdb" ;;
         *) return 1 ;;
+    esac
+}
+
+format_group_for_profile() {
+    case "$1" in
+        w01|w02|w03|w04) echo "standard-large" ;;
+        w05|w06) echo "smallfile" ;;
+        *) echo "$1" ;;
     esac
 }
 
 format_vdbench_profile() {
     local profile=$1 input output run_dir
-    input=${TEMPLATE:-$(template_for_profile "$profile")}
+    input=$(template_for_profile "$profile")
     [[ -f "$input" ]] || die "template does not exist: $input"
     [[ -n "$VDBENCH" ]] || die "--vdbench is required for --mode vdbench-format"
     [[ -n "$HOSTS" ]] || die "--hosts is required for --mode vdbench-format"
@@ -233,17 +296,20 @@ format_vdbench_profile() {
         die "Vdbench executable or wrapper is not executable: $VDBENCH"
     fi
     if (( DRY_RUN )); then
-        echo "[dry-run] would render $input with format=only and invoke $VDBENCH -f <rendered-$profile.vdb>"
+        echo "[dry-run] would render $input with clean,only and restart,only stages and invoke $VDBENCH -f <rendered-$profile.vdb>"
         return 0
     fi
     run_dir="$ROOT/.fitune-vdbench"
-    safe_mkdir "$run_dir"
-    output="$run_dir/$profile.format.vdb"
+    ensure_generated_subtree "$run_dir" "vdbench"
+    output="$run_dir/$profile.format.$$.vdb"
     python3 "$SCRIPT_DIR/render_vdbench.py" \
         --input "$input" --output "$output" --data "$ROOT" \
         --vdbench "$VDBENCH" --user "$USER_NAME" --hosts "$HOSTS"
+    local start end
+    start=$(date +%s)
     (cd "$run_dir" && "$VDBENCH" -f "$output")
-    echo "formatted $profile with native Vdbench format=only structure"
+    end=$(date +%s)
+    echo "formatted $profile with native Vdbench two-stage structure (format_elapsed_seconds=$((end - start)))"
 }
 
 prepare_direct_profile() {
@@ -251,14 +317,14 @@ prepare_direct_profile() {
     CREATED=0
     case "$profile" in
         w10)
-            remove_generated_root "$ROOT/fio"
+            remove_generated_root "$ROOT/fio" "w10"
             if (( MAX_FILES == 0 || CREATED < MAX_FILES )); then
                 create_file "$ROOT/fio/testfile1" 109949485056
             fi
             echo "prepared $ROOT/fio/testfile1 ($CREATED file, mode=$MODE)"
             ;;
         w14)
-            remove_generated_root "$ROOT/indexed"
+            remove_generated_root "$ROOT/indexed" "w14"
             if (( MAX_FILES == 0 || CREATED < MAX_FILES )); then
                 create_file "$ROOT/indexed/edge-records" 6871947673600
             fi
@@ -267,8 +333,8 @@ prepare_direct_profile() {
             fi
             echo "prepared $ROOT/indexed ($CREATED files, mode=$MODE)"
             ;;
-        w11) remove_generated_root "$ROOT/checkpoint-short"; echo "prepared $ROOT/checkpoint-short (directory only)" ;;
-        w12) remove_generated_root "$ROOT/checkpoint-long"; echo "prepared $ROOT/checkpoint-long (directory only)" ;;
+        w11) remove_generated_root "$ROOT/checkpoint-short" "w11"; echo "prepared $ROOT/checkpoint-short (directory only)" ;;
+        w12) remove_generated_root "$ROOT/checkpoint-long" "w12"; echo "prepared $ROOT/checkpoint-long (directory only)" ;;
         *) die "$profile requires --mode vdbench-format" ;;
     esac
 }
@@ -277,10 +343,17 @@ if [[ "$MODE" == "vdbench-format" ]]; then
     if (( ! DRY_RUN && ! CLEAN )); then
         die "Vdbench format=only can delete an existing native tree; pass --clean explicitly"
     fi
-    [[ -z "$TEMPLATE" || ${#PROFILES[@]} -eq 1 ]] || die "--template is valid only with one profile"
+    (( MAX_FILES == 0 )) || die "--max-files is not supported for native Vdbench formatting"
+    formatted_groups=""
     for profile in "${PROFILES[@]}"; do
         template_for_profile "$profile" >/dev/null || die "$profile is not a Vdbench FSD profile; use a direct-file mode"
+        group=$(format_group_for_profile "$profile")
+        if [[ " $formatted_groups " == *" $group "* ]]; then
+            echo "skipping duplicate Vdbench formatting for FSD group $group (profile=$profile)"
+            continue
+        fi
         format_vdbench_profile "$profile"
+        formatted_groups+=" $group"
     done
 else
     for profile in "${PROFILES[@]}"; do
