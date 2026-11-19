@@ -2,14 +2,6 @@
   "schema_version": 1,
   "trace_id": "workload-sequence-30day-v2",
   "duration_days": 30.0,
-  "release_boundary": {
-    "contains_only": "workload definitions and anonymized workload sequence",
-    "system_identifiers_included": false,
-    "results_included": false,
-    "native_benchmarks_executed": false,
-    "raw_trace_samples_included": false,
-    "reconstruction_note": "Workload phases reconstructed from the experimental trace used by the FiTune method; deployment identity and measured results are excluded."
-  },
   "workload_mapping": {
     "catalog": "README.md",
     "template_root": "workloads",
@@ -383,5 +375,8 @@
         }
       ]
     }
-  ]
+  ],
+  "provenance": {
+    "description": "Workload phases reconstructed from the experimental trace used by the FiTune method."
+  }
 }
