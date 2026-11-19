@@ -42,6 +42,8 @@ The dataset root is intentionally explicit and protected by a `.fitune-generated
 
 The preparation entry point uses only the repository's catalogued Vdbench templates; it does not accept an arbitrary `--template` path. The lower-level renderer also checks every `anchor=` and `lun=` path against the marked dataset root before writing a format configuration.
 
+Vdbench reports are written to a unique per-profile output directory. Format configurations are temporary and removed after the run; pass `--keep-config` only when a failed or diagnostic run needs to retain one.
+
 ```bash
 # Native Vdbench preparation; replace hosts and executable for the testbed.
 scripts/prepare_data.sh --root /mnt/fitune-data --init-root \
@@ -99,7 +101,9 @@ Before a multi-client Vdbench run, configure passwordless SSH or an equivalent a
 
 The IOR scripts require a hostfile with 16 non-comment entries and `slots=4` on every entry before launching `-np 64`. Start from [`hosts64.example`](workloads/11-checkpoint-short/hosts64.example), replace the host names, and set `@HOSTS64@` to that file. The scripts save each checkpoint PID and wait for every background checkpoint, so a failed MPI process prevents the final bandwidth summary.
 
-IOR variants are executable independently: `run.sh output` runs only output phases, `run.sh checkpoint` runs only checkpoint phases, and `run.sh all` runs the complete sequence. Each invocation writes its output files and logs under a unique run directory. The same commands are recorded in `catalog.json` under `variant_entries`.
+IOR variants are executable independently: `run.sh output` runs only output phases, `run.sh checkpoint` runs only checkpoint phases, and `run.sh all` runs the complete sequence. Each invocation validates the marked data root, rejects unsafe `FITUNE_RUN_ID` values, and creates output files and logs under one new `checkpoint-*/runs/<run-id>` directory. The same commands are recorded in `catalog.json` under `variant_entries`.
+
+Prepare the corresponding `w11` or `w12` directory profile before invoking an IOR script; the runner requires its subtree marker and refuses an unmarked or mounted profile directory.
 
 ## Tool versions and runtime dependencies
 

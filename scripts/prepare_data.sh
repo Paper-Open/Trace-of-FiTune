@@ -14,6 +14,7 @@ CLEAN=0
 FORCE=0
 DRY_RUN=0
 INIT_ROOT=0
+KEEP_CONFIG=0
 VDBENCH=""
 HOSTS=""
 USER_NAME=${USER:-}
@@ -37,6 +38,7 @@ General options:
   --init-root             Initialize an existing empty directory with a marker
   --clean                 Remove selected generated subtrees; marker required
   --force                 Permit overwriting existing regular data files
+  --keep-config           Keep generated Vdbench format configuration for debugging
   --dry-run               Print the planned operation without changing data
   --max-files N           Limit direct-file preparation for smoke tests only
 
@@ -78,6 +80,7 @@ while (($#)); do
         --init-root) INIT_ROOT=1; shift ;;
         --clean) CLEAN=1; shift ;;
         --force) FORCE=1; shift ;;
+        --keep-config) KEEP_CONFIG=1; shift ;;
         --dry-run) DRY_RUN=1; shift ;;
         -h|--help) usage; exit 0 ;;
         *) die "unknown option: $1" ;;
@@ -292,8 +295,13 @@ format_vdbench_profile() {
     [[ -n "$VDBENCH" ]] || die "--vdbench is required for --mode vdbench-format"
     [[ -n "$HOSTS" ]] || die "--hosts is required for --mode vdbench-format"
     [[ -n "$USER_NAME" ]] || die "--user is required for --mode vdbench-format"
-    if (( ! DRY_RUN )) && ! command -v "$VDBENCH" >/dev/null 2>&1 && [[ ! -x "$VDBENCH" ]]; then
-        die "Vdbench executable or wrapper is not executable: $VDBENCH"
+    if (( ! DRY_RUN )); then
+        if [[ "$VDBENCH" == */* ]]; then
+            [[ -x "$VDBENCH" ]] || die "Vdbench executable or wrapper is not executable: $VDBENCH"
+            VDBENCH="$(cd -P -- "$(dirname -- "$VDBENCH")" && pwd)/$(basename -- "$VDBENCH")"
+        else
+            VDBENCH=$(command -v -- "$VDBENCH") || die "Vdbench executable or wrapper not found: $VDBENCH"
+        fi
     fi
     if (( DRY_RUN )); then
         echo "[dry-run] would render $input with clean,only and restart,only stages and invoke $VDBENCH -f <rendered-$profile.vdb>"
@@ -301,14 +309,28 @@ format_vdbench_profile() {
     fi
     run_dir="$ROOT/.fitune-vdbench"
     ensure_generated_subtree "$run_dir" "vdbench"
-    output="$run_dir/$profile.format.$$.vdb"
-    python3 "$SCRIPT_DIR/render_vdbench.py" \
+    local temp_dir report_dir start end
+    temp_dir=$(mktemp -d "$run_dir/.format-$profile.XXXXXX")
+    output="$temp_dir/config.vdb"
+    report_dir="$run_dir/output-$profile-$(basename -- "$temp_dir").tod"
+    cleanup_format() {
+        if (( ! KEEP_CONFIG )); then
+            rm -rf -- "$temp_dir"
+        fi
+    }
+    if ! python3 "$SCRIPT_DIR/render_vdbench.py" \
         --input "$input" --output "$output" --data "$ROOT" \
-        --vdbench "$VDBENCH" --user "$USER_NAME" --hosts "$HOSTS"
-    local start end
+        --vdbench "$VDBENCH" --user "$USER_NAME" --hosts "$HOSTS"; then
+        cleanup_format
+        return 1
+    fi
     start=$(date +%s)
-    (cd "$run_dir" && "$VDBENCH" -f "$output")
+    if ! (cd "$run_dir" && "$VDBENCH" -f "$output" -o "$report_dir"); then
+        cleanup_format
+        return 1
+    fi
     end=$(date +%s)
+    cleanup_format
     echo "formatted $profile with native Vdbench two-stage structure (format_elapsed_seconds=$((end - start)))"
 }
 

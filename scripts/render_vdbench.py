@@ -7,6 +7,7 @@ import argparse
 import os
 from pathlib import Path
 import re
+import subprocess
 import sys
 
 
@@ -63,6 +64,33 @@ def safe_write(path: Path, text: str, root: Path, force: bool) -> None:
         except OSError:
             pass
         raise
+
+
+def mounted_paths() -> set[Path]:
+    paths: set[Path] = set()
+    mountinfo = Path("/proc/self/mountinfo")
+    if mountinfo.is_file():
+        for line in mountinfo.read_text().splitlines():
+            fields = line.split()
+            if len(fields) >= 5:
+                value = fields[4].replace(r"\040", " ").replace(r"\011", "\t").replace(r"\134", "\\")
+                paths.add(Path(os.path.realpath(value)))
+    else:
+        output = subprocess.run(["mount"], check=False, capture_output=True, text=True).stdout
+        for line in output.splitlines():
+            if " on " in line:
+                value = line.split(" on ", 1)[1].split(" (", 1)[0]
+                paths.add(Path(os.path.realpath(value)))
+    return paths
+
+
+def check_anchor_mounts(root: Path, candidate: Path, label: str) -> None:
+    candidate_real = Path(os.path.realpath(candidate))
+    for mount in mounted_paths():
+        if mount == root:
+            continue
+        if mount == candidate_real or str(mount).startswith(str(candidate_real) + os.sep):
+            raise SystemExit(f"{label} contains a nested mount point: {mount}")
 
 
 def render_shared_format(text: str) -> str:
@@ -138,7 +166,9 @@ def main() -> int:
     if not anchors:
         fail("input template contains no FSD anchor or SD lun path")
     for line_number, value in anchors:
-        check_inside(root, Path(value), f"FSD path on line {line_number}")
+        candidate = Path(value)
+        check_inside(root, candidate, f"FSD path on line {line_number}")
+        check_anchor_mounts(root, candidate, f"FSD path on line {line_number}")
 
     safe_write(args.output, render_shared_format(text), root, args.force)
     return 0

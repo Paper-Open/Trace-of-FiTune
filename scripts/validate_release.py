@@ -78,8 +78,8 @@ def validate_catalog() -> None:
 
         if item["id"] in {"w11", "w12"}:
             script = entry.read_text()
-            if "M=64" not in script or "mkdir -p \"$out_path\"" not in script:
-                add(f"{item['id']}: missing 64-rank or output-directory declaration")
+            if "M=64" not in script or "guard_run_paths" not in script or "out_path=" not in script:
+                add(f"{item['id']}: missing 64-rank or guarded output-directory declaration")
             if "validate_hostfile" not in script:
                 add(f"{item['id']}: missing hostfile validation")
             if item["id"] == "w12" and "wait \"$" not in script:

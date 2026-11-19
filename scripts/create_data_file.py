@@ -8,6 +8,8 @@ import hashlib
 import os
 from pathlib import Path
 import sys
+import stat
+import tempfile
 
 
 CHUNK = 1024 * 1024
@@ -46,48 +48,79 @@ def deterministic_bytes(seed: bytes, index: int, size: int) -> bytes:
     return hashlib.shake_256(seed + index.to_bytes(8, "big")).digest(size)
 
 
+def check_existing_target(path: Path, force: bool) -> None:
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        return
+    if stat.S_ISLNK(info.st_mode):
+        fail(f"refusing symlink target: {path}")
+    if not stat.S_ISREG(info.st_mode):
+        fail(f"refusing non-regular target: {path}")
+    if info.st_nlink != 1:
+        fail(f"refusing multiply-linked target: {path}")
+    if not force:
+        fail(f"refusing to overwrite existing file (use --force): {path}")
+
+
+def fsync_parent(path: Path) -> None:
+    try:
+        fd = os.open(path.parent, os.O_RDONLY)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+    except OSError:
+        pass
+
+
 def write_file(path: Path, size: int, mode: str, seed: bytes, force: bool) -> None:
-    flags = os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW
-    if path.exists() and not force:
-        fail(f"refusing to overwrite existing file (use --force): {path}")
-    if force:
-        flags |= os.O_TRUNC
-    else:
-        flags |= os.O_EXCL
-
+    check_existing_target(path, force)
+    fd, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.fitune-", dir=path.parent)
+    temporary = Path(temporary_name)
     try:
-        fd = os.open(path, flags, 0o640)
-    except FileExistsError:
-        fail(f"refusing to overwrite existing file (use --force): {path}")
-    except OSError as exc:
-        fail(f"cannot create {path}: {exc}")
+        try:
+            if mode == "sparse":
+                os.ftruncate(fd, size)
+            elif mode == "allocate":
+                if not hasattr(os, "posix_fallocate"):
+                    fail("allocate mode requires os.posix_fallocate")
+                os.posix_fallocate(fd, 0, size)
+            else:
+                digest_seed = seed
+                written = 0
+                block = b"\0" * CHUNK if mode == "zero" else None
+                chunk_index = 0
+                while written < size:
+                    nbytes = min(CHUNK, size - written)
+                    payload = block[:nbytes] if block is not None else deterministic_bytes(digest_seed, chunk_index, nbytes)
+                    view = memoryview(payload)
+                    while view:
+                        written_now = os.write(fd, view)
+                        if written_now <= 0:
+                            fail(f"short write while creating {path}")
+                        written += written_now
+                        view = view[written_now:]
+                    chunk_index += 1
+            os.fsync(fd)
+            os.fchmod(fd, 0o640)
+        finally:
+            os.close(fd)
 
-    try:
-        if mode == "sparse":
-            os.ftruncate(fd, size)
-        elif mode == "allocate":
-            if not hasattr(os, "posix_fallocate"):
-                fail("allocate mode requires os.posix_fallocate")
-            os.posix_fallocate(fd, 0, size)
+        if force:
+            check_existing_target(path, True)
+            os.replace(temporary, path)
         else:
-            digest_seed = seed
-            written = 0
-            block = b"\0" * CHUNK if mode == "zero" else None
-            chunk_index = 0
-            while written < size:
-                nbytes = min(CHUNK, size - written)
-                payload = block[:nbytes] if block is not None else deterministic_bytes(digest_seed, chunk_index, nbytes)
-                view = memoryview(payload)
-                while view:
-                    written_now = os.write(fd, view)
-                    if written_now <= 0:
-                        fail(f"short write while creating {path}")
-                    written += written_now
-                    view = view[written_now:]
-                chunk_index += 1
-        os.fsync(fd)
-    finally:
-        os.close(fd)
+            try:
+                os.link(temporary, path)
+            except FileExistsError:
+                fail(f"refusing to overwrite existing file (use --force): {path}")
+            temporary.unlink()
+        fsync_parent(path)
+    except Exception:
+        if temporary.exists():
+            temporary.unlink()
+        raise
 
 
 def main() -> int:

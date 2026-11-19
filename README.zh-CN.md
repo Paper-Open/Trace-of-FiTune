@@ -42,6 +42,8 @@
 
 准备入口只使用仓库 catalog 中的 Vdbench 模板，不再接受任意的 `--template` 路径。底层渲染器也会在写入格式化配置前，检查所有 `anchor=` 和 `lun=` 路径是否位于带标记的数据根目录下。
 
+Vdbench 报告会写入每个 profile 的独立输出目录。格式化配置默认在运行后删除；排查失败或保留诊断信息时才使用 `--keep-config`。
+
 ```bash
 # 原生 Vdbench 准备；请替换主机名和可执行文件路径。
 scripts/prepare_data.sh --root /mnt/fitune-data --init-root \
@@ -99,7 +101,9 @@ scripts/prepare_data.sh --root /mnt/fitune-data --profile w14 \
 
 IOR 脚本在启动 `-np 64` 前要求主机文件包含 16 个非注释条目，并且每个条目为 `slots=4`。请从 [`hosts64.example`](workloads/11-checkpoint-short/hosts64.example) 开始，替换主机名，并将 `@HOSTS64@` 设置为该文件。脚本会保存每个检查点 PID，并等待所有后台检查点完成；MPI 失败时不会输出最终带宽汇总。
 
-IOR 变体可以独立执行：`run.sh output` 只运行输出阶段，`run.sh checkpoint` 只运行检查点阶段，`run.sh all` 运行完整序列。每次执行都会将输出文件和日志写入独立的运行目录，具体命令记录在 `catalog.json` 的 `variant_entries` 中。
+IOR 变体可以独立执行：`run.sh output` 只运行输出阶段，`run.sh checkpoint` 只运行检查点阶段，`run.sh all` 运行完整序列。每次执行都会校验带标记的数据根目录，拒绝不安全的 `FITUNE_RUN_ID`，并将输出文件和日志写入同一个新的 `checkpoint-*/runs/<run-id>` 目录，具体命令记录在 `catalog.json` 的 `variant_entries` 中。
+
+运行 IOR 脚本前请先准备对应的 `w11` 或 `w12` 目录 profile；运行入口会要求存在子树标记，并拒绝未标记或作为挂载点的 profile 目录。
 
 ## 工具版本和运行依赖
 
