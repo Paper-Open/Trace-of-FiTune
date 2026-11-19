@@ -1,20 +1,180 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "scope": "workload-only",
   "workloads": [
-    {"id": "w01", "pattern": "4 KiB random write", "tool": "Vdbench", "clients": 8, "entry": "workloads/01-std-rand-write/workload.vdb"},
-    {"id": "w02", "pattern": "4 KiB random read", "tool": "Vdbench", "clients": 8, "entry": "workloads/02-std-rand-read/workload.vdb"},
-    {"id": "w03", "pattern": "4 MiB sequential write", "tool": "Vdbench", "clients": 8, "entry": "workloads/03-std-seq-write/workload.vdb"},
-    {"id": "w04", "pattern": "4 MiB sequential read", "tool": "Vdbench", "clients": 8, "entry": "workloads/04-std-seq-read/workload.vdb"},
-    {"id": "w05", "pattern": "4 KiB small-file write", "tool": "Vdbench", "clients": 8, "entry": "workloads/05-small-write/workload.vdb"},
-    {"id": "w06", "pattern": "4 KiB small-file read", "tool": "Vdbench", "clients": 8, "entry": "workloads/06-small-read/workload.vdb"},
-    {"id": "w07", "pattern": "mixed random I/O on 400 KiB files", "tool": "Vdbench", "clients": 16, "entry": "workloads/07-mixed400k/workload.vdb"},
-    {"id": "w08", "pattern": "mixed operation-rate I/O", "tool": "Vdbench", "clients": 16, "entry": "workloads/08-operation-mix/workload.vdb"},
-    {"id": "w09", "pattern": "mixed bandwidth I/O", "tool": "Vdbench", "clients": 16, "entry": "workloads/09-bandwidth-mix/workload.vdb"},
-    {"id": "w10", "pattern": "single-stream and rate-limited I/O", "tool": "fio", "clients": 1, "entry": "workloads/10-fio-streams/"},
-    {"id": "w11", "pattern": "short output and checkpoint sequence", "tool": "IOR/MPI", "clients": 16, "entry": "workloads/11-checkpoint-short/run.sh"},
-    {"id": "w12", "pattern": "long output and checkpoint sequence", "tool": "IOR/MPI", "clients": 16, "entry": "workloads/12-checkpoint-long/run.sh"},
-    {"id": "w13", "pattern": "inference-style I/O", "tool": "Vdbench", "clients": 16, "entry": "workloads/13-inference/workload.vdb"},
-    {"id": "w14", "pattern": "indexed edge and vertex I/O", "tool": "Vdbench", "clients": 16, "entry": "workloads/14-indexed-access/"}
+    {
+      "id": "w01",
+      "pattern": "4 KiB random write",
+      "tool": "Vdbench 5.04.06",
+      "clients": 8,
+      "client_mapping": "hd1-hd8; fwdN -> hdN",
+      "entry": "workloads/01-std-rand-write/workload.vdb",
+      "variants": [
+        "rd1"
+      ]
+    },
+    {
+      "id": "w02",
+      "pattern": "4 KiB random read",
+      "tool": "Vdbench 5.04.06",
+      "clients": 8,
+      "client_mapping": "hd1-hd8; fwdN -> hdN",
+      "entry": "workloads/02-std-rand-read/workload.vdb",
+      "variants": [
+        "rd1"
+      ]
+    },
+    {
+      "id": "w03",
+      "pattern": "4 MiB sequential write",
+      "tool": "Vdbench 5.04.06",
+      "clients": 8,
+      "client_mapping": "hd1-hd8; fwdN -> hdN",
+      "entry": "workloads/03-std-seq-write/workload.vdb",
+      "variants": [
+        "rd1"
+      ]
+    },
+    {
+      "id": "w04",
+      "pattern": "4 MiB sequential read",
+      "tool": "Vdbench 5.04.06",
+      "clients": 8,
+      "client_mapping": "hd1-hd8; fwdN -> hdN",
+      "entry": "workloads/04-std-seq-read/workload.vdb",
+      "variants": [
+        "rd1"
+      ]
+    },
+    {
+      "id": "w05",
+      "pattern": "4 KiB small-file write",
+      "tool": "Vdbench 5.04.06",
+      "clients": 8,
+      "client_mapping": "hd1-hd8; fwdN -> hdN",
+      "entry": "workloads/05-small-write/workload.vdb",
+      "variants": [
+        "rd1"
+      ]
+    },
+    {
+      "id": "w06",
+      "pattern": "4 KiB small-file read",
+      "tool": "Vdbench 5.04.06",
+      "clients": 8,
+      "client_mapping": "hd1-hd8; fwdN -> hdN",
+      "entry": "workloads/06-small-read/workload.vdb",
+      "variants": [
+        "rd1"
+      ]
+    },
+    {
+      "id": "w07",
+      "pattern": "mixed random I/O on 400 KiB files",
+      "tool": "Vdbench 5.04.06",
+      "clients": 16,
+      "client_mapping": "hd1-hd16; fwdN -> hdN",
+      "entry": "workloads/07-mixed400k/workload.vdb",
+      "variants": [
+        "rd1"
+      ]
+    },
+    {
+      "id": "w08",
+      "pattern": "mixed operation-rate I/O",
+      "tool": "Vdbench 5.04.06",
+      "clients": 16,
+      "client_mapping": "hd1-hd16; FWD host omitted, using Vdbench default distribution over hd1-hd16; each FWD selects the listed FSD set",
+      "entry": "workloads/08-operation-mix/workload.vdb",
+      "variants": [
+        "rd1"
+      ]
+    },
+    {
+      "id": "w09",
+      "pattern": "mixed bandwidth I/O",
+      "tool": "Vdbench 5.04.06",
+      "clients": 16,
+      "client_mapping": "hd1-hd16; FWD host omitted, using Vdbench default distribution over hd1-hd16; each FWD selects the listed FSD set",
+      "entry": "workloads/09-bandwidth-mix/workload.vdb",
+      "variants": [
+        "rd1"
+      ]
+    },
+    {
+      "id": "w10",
+      "pattern": "single-stream and rate-limited I/O",
+      "tool": "fio 3.36",
+      "clients": 1,
+      "client_mapping": "single local fio process",
+      "entry": "workloads/10-fio-streams/read-1.fio",
+      "variants": [
+        "read-1",
+        "write-1",
+        "single-read",
+        "single-write"
+      ],
+      "entries": [
+        "workloads/10-fio-streams/read-1.fio",
+        "workloads/10-fio-streams/write-1.fio",
+        "workloads/10-fio-streams/single-read.fio",
+        "workloads/10-fio-streams/single-write.fio"
+      ]
+    },
+    {
+      "id": "w11",
+      "pattern": "short output and checkpoint sequence",
+      "tool": "IOR 4.0.0 + MPI",
+      "clients": 16,
+      "client_mapping": "64 ranks = 16 clients x 4 ranks/client; @HOSTS64@ supplies the host slots",
+      "entry": "workloads/11-checkpoint-short/run.sh",
+      "variants": [
+        "output",
+        "checkpoint"
+      ]
+    },
+    {
+      "id": "w12",
+      "pattern": "long output and checkpoint sequence",
+      "tool": "IOR 4.0.0 + MPI",
+      "clients": 16,
+      "client_mapping": "64 ranks = 16 clients x 4 ranks/client; @HOSTS64@ supplies the host slots",
+      "entry": "workloads/12-checkpoint-long/run.sh",
+      "variants": [
+        "output",
+        "checkpoint"
+      ]
+    },
+    {
+      "id": "w13",
+      "pattern": "inference-style I/O",
+      "tool": "Vdbench 5.04.06",
+      "clients": 16,
+      "client_mapping": "hd1-hd16; FWDs share fsd0 and use the declared operation mix",
+      "entry": "workloads/13-inference/workload.vdb",
+      "variants": [
+        "rd1"
+      ]
+    },
+    {
+      "id": "w14",
+      "pattern": "indexed edge and vertex I/O",
+      "tool": "Vdbench 5.04.06",
+      "clients": 16,
+      "client_mapping": "h1-h16; sdN -> hN with non-overlapping ranges",
+      "entry": "workloads/14-indexed-access/rd1.vdb",
+      "variants": [
+        "rd1",
+        "rd2",
+        "rd3",
+        "rd4"
+      ],
+      "entries": [
+        "workloads/14-indexed-access/rd1.vdb",
+        "workloads/14-indexed-access/rd2.vdb",
+        "workloads/14-indexed-access/rd3.vdb",
+        "workloads/14-indexed-access/rd4.vdb"
+      ]
+    }
   ]
 }

@@ -1,16 +1,11 @@
 {
-  "schema_version": 1,
-  "trace_id": "workload-sequence-30day-v2",
+  "schema_version": 2,
+  "trace_id": "workload-sequence-30day-v3",
   "duration_days": 30.0,
   "workload_mapping": {
-    "catalog": "README.md",
+    "catalog": "catalog.json",
     "template_root": "workloads",
-    "mapping_policy": "Each phase maps to one neutral workload identifier and one public template path."
-  },
-  "operation_policy": {
-    "similarity_match": "Apply a validated profile directly.",
-    "low_coverage": "Retain last-known-good, search and validate during a 2--3 hour maintenance window, then apply in the next operation window.",
-    "recurrence_reuse": "Reuse the validated profile at the workload boundary."
+    "mapping_policy": "Each phase maps to one neutral workload identifier, one public template path, and an optional variant."
   },
   "traces": [
     {
@@ -24,12 +19,8 @@
           "variant": "rd1",
           "start_day": 0.0,
           "end_day": 1.6,
-          "repeat_of": null,
-          "coverage_class": "similarity_match",
-          "recommendation_policy": "one_shot_profile_recommendation",
-          "reaction_time_hours": 5.376,
-          "tuning_window_hours": 3.84,
-          "maintenance_window_hours": 0.0
+          "duration_days": 1.6,
+          "repeat_of": null
         },
         {
           "phase_id": "P2",
@@ -38,12 +29,8 @@
           "variant": "rd1",
           "start_day": 1.6,
           "end_day": 3.45,
-          "repeat_of": null,
-          "coverage_class": "similarity_match",
-          "recommendation_policy": "one_shot_profile_recommendation",
-          "reaction_time_hours": 6.216,
-          "tuning_window_hours": 4.44,
-          "maintenance_window_hours": 0.0
+          "duration_days": 1.85,
+          "repeat_of": null
         },
         {
           "phase_id": "P3",
@@ -52,12 +39,8 @@
           "variant": "rd1",
           "start_day": 3.45,
           "end_day": 4.95,
-          "repeat_of": null,
-          "coverage_class": "low_coverage",
-          "recommendation_policy": "retain_last_known_good_then_maintain",
-          "reaction_time_hours": 5.04,
-          "tuning_window_hours": 3.6,
-          "maintenance_window_hours": 2.5
+          "duration_days": 1.5,
+          "repeat_of": null
         },
         {
           "phase_id": "P4",
@@ -66,12 +49,8 @@
           "variant": "rd1",
           "start_day": 4.95,
           "end_day": 7.25,
-          "repeat_of": null,
-          "coverage_class": "low_coverage",
-          "recommendation_policy": "retain_last_known_good_then_maintain",
-          "reaction_time_hours": 7.728,
-          "tuning_window_hours": 5.52,
-          "maintenance_window_hours": 2.5
+          "duration_days": 2.3,
+          "repeat_of": null
         },
         {
           "phase_id": "P5",
@@ -80,12 +59,8 @@
           "variant": "rd1",
           "start_day": 7.25,
           "end_day": 9.9,
-          "repeat_of": null,
-          "coverage_class": "similarity_match",
-          "recommendation_policy": "one_shot_profile_recommendation",
-          "reaction_time_hours": 8.904,
-          "tuning_window_hours": 6.36,
-          "maintenance_window_hours": 0.0
+          "duration_days": 2.65,
+          "repeat_of": null
         },
         {
           "phase_id": "P6",
@@ -94,12 +69,8 @@
           "variant": "read-1",
           "start_day": 9.9,
           "end_day": 11.2,
-          "repeat_of": null,
-          "coverage_class": "low_coverage",
-          "recommendation_policy": "retain_last_known_good_then_maintain",
-          "reaction_time_hours": 4.368,
-          "tuning_window_hours": 3.12,
-          "maintenance_window_hours": 2.5
+          "duration_days": 1.3,
+          "repeat_of": null
         },
         {
           "phase_id": "P7",
@@ -108,12 +79,8 @@
           "variant": "rd1",
           "start_day": 11.2,
           "end_day": 13.6,
-          "repeat_of": null,
-          "coverage_class": "low_coverage",
-          "recommendation_policy": "retain_last_known_good_then_maintain",
-          "reaction_time_hours": 8.064,
-          "tuning_window_hours": 5.76,
-          "maintenance_window_hours": 2.5
+          "duration_days": 2.4,
+          "repeat_of": null
         },
         {
           "phase_id": "P8",
@@ -122,12 +89,8 @@
           "variant": "rd1",
           "start_day": 13.6,
           "end_day": 15.55,
-          "repeat_of": null,
-          "coverage_class": "low_coverage",
-          "recommendation_policy": "retain_last_known_good_then_maintain",
-          "reaction_time_hours": 6.552,
-          "tuning_window_hours": 4.68,
-          "maintenance_window_hours": 2.5
+          "duration_days": 1.95,
+          "repeat_of": null
         },
         {
           "phase_id": "P9",
@@ -136,12 +99,8 @@
           "variant": "rd1",
           "start_day": 15.55,
           "end_day": 17.65,
-          "repeat_of": null,
-          "coverage_class": "low_coverage",
-          "recommendation_policy": "retain_last_known_good_then_maintain",
-          "reaction_time_hours": 7.056,
-          "tuning_window_hours": 5.04,
-          "maintenance_window_hours": 2.5
+          "duration_days": 2.1,
+          "repeat_of": null
         },
         {
           "phase_id": "P10",
@@ -150,12 +109,8 @@
           "variant": "rd1",
           "start_day": 17.65,
           "end_day": 19.25,
-          "repeat_of": null,
-          "coverage_class": "low_coverage",
-          "recommendation_policy": "retain_last_known_good_then_maintain",
-          "reaction_time_hours": 5.376,
-          "tuning_window_hours": 3.84,
-          "maintenance_window_hours": 2.5
+          "duration_days": 1.6,
+          "repeat_of": null
         },
         {
           "phase_id": "P11",
@@ -164,12 +119,8 @@
           "variant": "rd1",
           "start_day": 19.25,
           "end_day": 21.75,
-          "repeat_of": "P9",
-          "coverage_class": "recurrence_reuse",
-          "recommendation_policy": "direct_profile_reuse",
-          "reaction_time_hours": 0.0,
-          "tuning_window_hours": 4.08,
-          "maintenance_window_hours": 0.0
+          "duration_days": 2.5,
+          "repeat_of": "P9"
         },
         {
           "phase_id": "P12",
@@ -178,12 +129,8 @@
           "variant": "output",
           "start_day": 21.75,
           "end_day": 23.8,
-          "repeat_of": null,
-          "coverage_class": "low_coverage",
-          "recommendation_policy": "retain_last_known_good_then_maintain",
-          "reaction_time_hours": 6.888,
-          "tuning_window_hours": 4.92,
-          "maintenance_window_hours": 2.5
+          "duration_days": 2.05,
+          "repeat_of": null
         },
         {
           "phase_id": "P13",
@@ -192,12 +139,8 @@
           "variant": "rd2",
           "start_day": 23.8,
           "end_day": 25.7,
-          "repeat_of": null,
-          "coverage_class": "low_coverage",
-          "recommendation_policy": "retain_last_known_good_then_maintain",
-          "reaction_time_hours": 6.384,
-          "tuning_window_hours": 4.56,
-          "maintenance_window_hours": 2.5
+          "duration_days": 1.9,
+          "repeat_of": null
         },
         {
           "phase_id": "P14",
@@ -206,12 +149,8 @@
           "variant": "rd1",
           "start_day": 25.7,
           "end_day": 27.7,
-          "repeat_of": "P2",
-          "coverage_class": "recurrence_reuse",
-          "recommendation_policy": "direct_profile_reuse",
-          "reaction_time_hours": 0.0,
-          "tuning_window_hours": 3.84,
-          "maintenance_window_hours": 0.0
+          "duration_days": 2.0,
+          "repeat_of": "P2"
         },
         {
           "phase_id": "P15",
@@ -220,14 +159,11 @@
           "variant": "rd4",
           "start_day": 27.7,
           "end_day": 30.0,
-          "repeat_of": null,
-          "coverage_class": "low_coverage",
-          "recommendation_policy": "retain_last_known_good_then_maintain",
-          "reaction_time_hours": 7.728,
-          "tuning_window_hours": 5.52,
-          "maintenance_window_hours": 2.5
+          "duration_days": 2.3,
+          "repeat_of": null
         }
-      ]
+      ],
+      "deployment_id": "deployment_a"
     },
     {
       "id": "trace_b",
@@ -240,12 +176,8 @@
           "variant": "rd1",
           "start_day": 0.0,
           "end_day": 2.1,
-          "repeat_of": null,
-          "coverage_class": "similarity_match",
-          "recommendation_policy": "one_shot_profile_recommendation",
-          "reaction_time_hours": 7.056,
-          "tuning_window_hours": 5.04,
-          "maintenance_window_hours": 0.0
+          "duration_days": 2.1,
+          "repeat_of": null
         },
         {
           "phase_id": "P2",
@@ -254,12 +186,8 @@
           "variant": "rd1",
           "start_day": 2.1,
           "end_day": 4.8,
-          "repeat_of": null,
-          "coverage_class": "similarity_match",
-          "recommendation_policy": "one_shot_profile_recommendation",
-          "reaction_time_hours": 9.072,
-          "tuning_window_hours": 6.48,
-          "maintenance_window_hours": 0.0
+          "duration_days": 2.7,
+          "repeat_of": null
         },
         {
           "phase_id": "P3",
@@ -268,12 +196,8 @@
           "variant": "rd1",
           "start_day": 4.8,
           "end_day": 7.1,
-          "repeat_of": null,
-          "coverage_class": "low_coverage",
-          "recommendation_policy": "retain_last_known_good_then_maintain",
-          "reaction_time_hours": 7.728,
-          "tuning_window_hours": 5.52,
-          "maintenance_window_hours": 2.5
+          "duration_days": 2.3,
+          "repeat_of": null
         },
         {
           "phase_id": "P4",
@@ -282,12 +206,8 @@
           "variant": "rd1",
           "start_day": 7.1,
           "end_day": 10.2,
-          "repeat_of": null,
-          "coverage_class": "low_coverage",
-          "recommendation_policy": "retain_last_known_good_then_maintain",
-          "reaction_time_hours": 10.416,
-          "tuning_window_hours": 7.44,
-          "maintenance_window_hours": 2.5
+          "duration_days": 3.1,
+          "repeat_of": null
         },
         {
           "phase_id": "P5",
@@ -296,12 +216,8 @@
           "variant": "rd1",
           "start_day": 10.2,
           "end_day": 14.4,
-          "repeat_of": null,
-          "coverage_class": "low_coverage",
-          "recommendation_policy": "retain_last_known_good_then_maintain",
-          "reaction_time_hours": 14.112,
-          "tuning_window_hours": 10.08,
-          "maintenance_window_hours": 2.5
+          "duration_days": 4.2,
+          "repeat_of": null
         },
         {
           "phase_id": "P6",
@@ -310,12 +226,8 @@
           "variant": "rd1",
           "start_day": 14.4,
           "end_day": 18.0,
-          "repeat_of": null,
-          "coverage_class": "low_coverage",
-          "recommendation_policy": "retain_last_known_good_then_maintain",
-          "reaction_time_hours": 12.096,
-          "tuning_window_hours": 8.64,
-          "maintenance_window_hours": 2.5
+          "duration_days": 3.6,
+          "repeat_of": null
         },
         {
           "phase_id": "P7",
@@ -324,12 +236,8 @@
           "variant": "rd1",
           "start_day": 18.0,
           "end_day": 21.5,
-          "repeat_of": null,
-          "coverage_class": "low_coverage",
-          "recommendation_policy": "retain_last_known_good_then_maintain",
-          "reaction_time_hours": 11.76,
-          "tuning_window_hours": 8.4,
-          "maintenance_window_hours": 2.5
+          "duration_days": 3.5,
+          "repeat_of": null
         },
         {
           "phase_id": "P8",
@@ -338,12 +246,8 @@
           "variant": "rd1",
           "start_day": 21.5,
           "end_day": 24.4,
-          "repeat_of": "P2",
-          "coverage_class": "recurrence_reuse",
-          "recommendation_policy": "direct_profile_reuse",
-          "reaction_time_hours": 0.0,
-          "tuning_window_hours": 4.32,
-          "maintenance_window_hours": 0.0
+          "duration_days": 2.9,
+          "repeat_of": "P2"
         },
         {
           "phase_id": "P9",
@@ -352,12 +256,8 @@
           "variant": "rd1",
           "start_day": 24.4,
           "end_day": 27.0,
-          "repeat_of": "P5",
-          "coverage_class": "recurrence_reuse",
-          "recommendation_policy": "direct_profile_reuse",
-          "reaction_time_hours": 0.0,
-          "tuning_window_hours": 4.32,
-          "maintenance_window_hours": 0.0
+          "duration_days": 2.6,
+          "repeat_of": "P5"
         },
         {
           "phase_id": "P10",
@@ -366,17 +266,18 @@
           "variant": "rd1",
           "start_day": 27.0,
           "end_day": 30.0,
-          "repeat_of": "P7",
-          "coverage_class": "recurrence_reuse",
-          "recommendation_policy": "direct_profile_reuse",
-          "reaction_time_hours": 0.0,
-          "tuning_window_hours": 4.32,
-          "maintenance_window_hours": 0.0
+          "duration_days": 3.0,
+          "repeat_of": "P7"
         }
-      ]
+      ],
+      "deployment_id": "deployment_b"
     }
   ],
   "provenance": {
     "description": "Workload phases reconstructed from the experimental trace used by the FiTune method."
+  },
+  "deployment_mapping": {
+    "trace_a": "deployment_a",
+    "trace_b": "deployment_b"
   }
 }

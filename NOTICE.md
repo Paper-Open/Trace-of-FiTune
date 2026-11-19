@@ -1,5 +1,5 @@
 # Notice
 
-This repository provides workload templates and an anonymized workload sequence reconstructed from the experimental trace used by the FiTune method.
+This repository provides public workload templates and phase-level workload sequences reconstructed from the experimental trace used by the FiTune paper.
 
-Vdbench, fio, IOR, MPI, Java, and other external tools are dependencies of the templates. Their names and native libraries remain subject to their respective upstream licenses.
+The templates invoke Vdbench, fio, IOR, MPI, Java, and other external tools. Those tools and their native libraries are separate dependencies and remain subject to their respective upstream licenses.

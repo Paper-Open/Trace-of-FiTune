@@ -23,7 +23,6 @@ hd=hd16,system=@HOST16@
 fsd=default,openflags=o_direct,shared=yes
 fsd=fsd0,anchor=@DATA@/ai,depth=4,width=6,files=10,size=(53739520,30,107347968,40,214695936,30)
 
-fwd=format,thread=128,xfersize=4m
 fwd=default,thread=768
 fwd=fwd1,fsd=fsd0,operation=write,xfersize=128k,fileio=sequential,fileselect=sequential,skew=10
 fwd=fwd2,fsd=fsd0,operation=write,xfersize=64k,fileio=sequential,fileselect=sequential,skew=10
